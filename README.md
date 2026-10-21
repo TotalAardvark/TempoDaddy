@@ -1,32 +1,69 @@
-# React + TypeScript + Vite
+# Tempo Daddy 🥁⏱️
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+**Tempo Daddy** is an intelligent, coach-inspired metronome and structured practice companion built for musicians (drummers, pianists, guitarists, and multi-instrumentalists). 
 
-Currently, two official plugins are available:
+Rather than functioning as just another passive click-track, Tempo Daddy is designed around deliberate practice principles: progressive tempo ramping, tracking personal bests, sticking patterns, session routines, and persistent practice metrics.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+---
 
-## React Compiler
+## 🎯 Key Features
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Precision Audio Engine**: High-accuracy Web Audio API scheduling for drift-free metronome playback with clean primary and secondary accents.
+- **Subdivision & Meter Control**:
+  - Support for quarter notes ($1/4$), eighth notes ($1/8$), sixteenth notes ($1/16$), and triplet feels across meters.
+  - Interactive circular dial and manual BPM steppers with instant feedback.
+- **Skill Library & Routine Builder**:
+  - Organize exercises and rudiments across categories (Drumming, Piano, Guitar, General).
+  - Built-in sticking notation displays (e.g., `R L R R L R L L` for paradiddles).
+  - Target BPM goals, custom notes, and ability to hibernate or reorder skills.
+- **Adaptive Tempo Ramping**:
+  - Automatically ramp tempo over a set number of measures (e.g., starting at 80% of your Personal Best and ramping to 90% or beyond).
+  - Eliminates manual adjustments during flow state practice.
+- **Personal Bests & Progress Tracking**:
+  - Automatically logs clean practice runs as new Personal Bests (PBs).
+  - Sparklines and visual progress graphs showing tempo progression over time.
+  - Practice streak calendars and routine completion summaries with celebration effects.
+- **Offline & Local-First**:
+  - Session history, skills, and stats persist locally in the browser so you can practice anywhere without an active internet connection.
 
-## Expanding the Oxlint configuration
+---
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+## 🚀 Getting Started
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
-```
+### Prerequisites
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+- [Node.js](https://nodejs.org/) (v18 or higher recommended)
+- `npm` (or `pnpm` / `yarn`)
+
+### Installation & Local Development
+
+1. **Clone the repository:**
+   ```bash
+   git clone git@github.com:TotalAardvark/TempoDaddy.git
+   cd TempoDaddy
+   ```
+
+2. **Install dependencies:**
+   ```bash
+   npm install
+   ```
+
+3. **Start the development server:**
+   ```bash
+   npm run dev
+   ```
+
+4. **Build for production:**
+   ```bash
+   npm run build
+   ```
+
+---
+
+## 🛠️ Built With
+
+- **React 19**
+- **TypeScript**
+- **Vite**
+- **Tailwind CSS v4**
+- **Lucide Icons** & **Canvas Confetti**
