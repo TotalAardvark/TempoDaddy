@@ -1,0 +1,29 @@
+{
+  "name": "Tempo Daddy",
+  "short_name": "Tempo Daddy",
+  "description": "Friction-free metronome & practice companion for building speed and chops.",
+  "start_url": "/TempoDaddy/",
+  "scope": "/TempoDaddy/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a0a0a",
+  "theme_color": "#0a0a0a",
+  "icons": [
+    {
+      "src": "pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
