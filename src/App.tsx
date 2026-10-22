@@ -628,7 +628,7 @@ export default function App() {
 
   // SCREEN 3: Active Interactive Practice View
   return (
-    <div className="min-h-screen w-full flex flex-col justify-between items-center bg-gradient-to-b from-neutral-950 via-neutral-900 to-black text-white px-4 pt-2 pb-1.5 select-none touch-none">
+    <div className="h-[100dvh] max-h-[100dvh] overflow-hidden w-full flex flex-col justify-between items-center bg-gradient-to-b from-neutral-950 via-neutral-900 to-black text-white px-4 pt-[max(0.5rem,env(safe-area-inset-top))] pb-[max(0.5rem,env(safe-area-inset-bottom))] select-none">
       {/* Top Header Navigation */}
       <header className="w-full max-w-md flex items-center justify-between shrink-0">
         {/* Routine Queue Progress Indicator */}
@@ -718,9 +718,9 @@ export default function App() {
       </header>
 
       {/* Upper Info Section: Title, Sticking & Progress Card (Vertically Centered) */}
-      <div className="flex-1 flex flex-col items-center justify-center min-h-0 w-full max-w-md py-1">
-        <div className="w-full text-center mb-1">
-          <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-white mb-2">
+      <div className="flex-1 flex flex-col items-center justify-center min-h-0 w-full max-w-md py-0.5">
+        <div className="w-full text-center mb-0.5">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight text-white mb-1 sm:mb-2">
             {currentSkill?.title}
           </h1>
 
@@ -734,7 +734,7 @@ export default function App() {
         </div>
 
         {/* Hero Personal Best Target & Progress Graph */}
-        <div className="w-full flex justify-center mt-7">
+        <div className="w-full flex justify-center mt-2 sm:mt-5">
           {currentSkill && (
             <ProgressSparkline
               personalBestBpm={currentSkill.personalBestBpm}
@@ -746,7 +746,7 @@ export default function App() {
       </div>
 
       {/* Circular Dial Metronome with swipe & Tempo Ramp button (lifted ~25px) */}
-      <div className="flex flex-col items-center shrink-0 -mt-6">
+      <div className="flex flex-col items-center shrink-0 -mt-2 sm:-mt-6">
         <CircularDial
           bpm={bpm}
           minBpm={40}
@@ -769,7 +769,7 @@ export default function App() {
       </div>
 
       {/* Lower Section: Adaptive, Inobtrusive Rehearsal Notes Field */}
-      <div className="shrink-0 flex flex-col items-center justify-center w-full max-w-md pt-[15px] pb-1">
+      <div className="shrink-0 flex flex-col items-center justify-center w-full max-w-md pt-1 sm:pt-[12px] pb-0.5">
         <SkillNotesDialog
           notes={currentSkill?.notes}
           onSaveNotes={handleUpdateNotes}
@@ -777,19 +777,19 @@ export default function App() {
       </div>
 
       {/* Done Button: Vertically centered in the remaining space between Rehearsal Notes and Auxiliary Controls */}
-      <div className="flex-1 flex flex-col items-center justify-center w-full min-h-0">
+      <div className="flex-1 flex flex-col items-center justify-center w-full min-h-0 py-1">
         <button
           type="button"
           onClick={handleDoneClick}
-          className="w-[95%] max-w-[323px] py-4 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-300 text-neutral-950 font-black text-lg flex items-center justify-center gap-2 shadow-xl shadow-amber-500/25 active:scale-98 transition transform cursor-pointer"
+          className="w-[95%] max-w-[323px] py-3 sm:py-4 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-300 text-neutral-950 font-black text-base sm:text-lg flex items-center justify-center gap-2 shadow-xl shadow-amber-500/25 active:scale-98 transition transform cursor-pointer"
         >
-          <Check className="w-6 h-6 stroke-[3]" />
+          <Check className="w-5 h-5 sm:w-6 sm:h-6 stroke-[3]" />
           <span>DONE (LOG PERFORMANCE)</span>
         </button>
       </div>
 
       {/* Auxiliary Controls (Exit, Play/Pause, Skip) */}
-      <footer className="w-full max-w-[340px] shrink-0 pb-1">
+      <footer className="w-full max-w-[340px] shrink-0 pb-1 sm:pb-2">
         <div className="flex items-center justify-between px-2 text-neutral-400">
           {/* Exit Button */}
           <button

@@ -73,10 +73,10 @@ export const ColdStartScreen: React.FC<ColdStartScreenProps> = ({
   return (
     <div
       onClick={onStart}
-      className="min-h-screen w-full flex flex-col justify-between items-center px-6 pb-2 pt-2 bg-gradient-to-b from-neutral-950 via-neutral-900 to-black text-white cursor-pointer select-none transition-colors"
+      className="h-[100dvh] max-h-[100dvh] overflow-hidden w-full flex flex-col justify-between items-center px-6 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-gradient-to-b from-neutral-950 via-neutral-900 to-black text-white cursor-pointer select-none transition-colors"
     >
       {/* Top Header Navigation: matches practice screen styling */}
-      <div className="w-full max-w-md flex items-center justify-between pt-1">
+      <div className="w-full max-w-md flex items-center justify-between">
         {/* Left: Branding */}
         <div className="flex items-center gap-2 text-xs font-semibold tracking-wider uppercase text-neutral-400">
           <Music className="w-4 h-4 text-amber-400" />
