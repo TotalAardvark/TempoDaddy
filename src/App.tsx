@@ -52,6 +52,7 @@ export default function App() {
   const [isLibraryOpen, setIsLibraryOpen] = useState<boolean>(false);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState<boolean>(false);
   const [isExitModalOpen, setIsExitModalOpen] = useState<boolean>(false);
+  const [completedSkillIds, setCompletedSkillIds] = useState<Set<string>>(() => new Set());
   const [isRandomOrder, setIsRandomOrder] = useState<boolean>(() => {
     return localStorage.getItem('tempo_coach_random_order') === 'true';
   });
@@ -212,6 +213,7 @@ export default function App() {
   // 1. Cold Start tap -> begins routine on the top of the list (Skill 0) at 80% PB
   const handleColdStart = async () => {
     setIsColdStart(false);
+    setCompletedSkillIds(new Set());
 
     let currentActiveList = skills.filter((s) => !s.isHibernated);
     if (isRandomOrder && currentActiveList.length > 1) {
@@ -381,6 +383,8 @@ export default function App() {
   const handleConfirmSession = (finalBpm: number) => {
     if (!currentSkill) return;
 
+    setCompletedSkillIds((prev) => new Set(prev).add(currentSkill.id));
+
     const durationSeconds = Math.max(10, Math.round((Date.now() - sessionStartTimeRef.current) / 1000));
     const newSession: PracticeSessionLog = {
       id: 'session-' + Date.now(),
@@ -489,6 +493,7 @@ export default function App() {
     if (!selectedSkill) return;
     const activeIdx = activeSkills.findIndex((s) => s.id === selectedSkill.id);
     setActiveSkillIndex(activeIdx !== -1 ? activeIdx : 0);
+    setCompletedSkillIds(new Set());
     setIsLibraryOpen(false);
     setIsRoutineFinished(false);
     setIsColdStart(false);
@@ -497,6 +502,7 @@ export default function App() {
 
   const handleRestartRoutine = () => {
     setIsRoutineFinished(false);
+    setCompletedSkillIds(new Set());
     setActiveSkillIndex(0);
     const firstActive = activeSkills[0] || skills[0];
     if (firstActive) {
@@ -592,6 +598,7 @@ export default function App() {
         <RoutineCompleteScreen
           skills={skills}
           todaySessions={todaySessions}
+          completedSkillIds={completedSkillIds}
           streak={streak}
           onRestartRoutine={handleRestartRoutine}
           onReturnToTitle={() => {

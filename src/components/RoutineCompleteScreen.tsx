@@ -9,6 +9,7 @@ import confetti from 'canvas-confetti';
 interface RoutineCompleteScreenProps {
   skills: Skill[];
   todaySessions: PracticeSessionLog[];
+  completedSkillIds?: Set<string>;
   streak: number;
   onRestartRoutine: () => void;
   onReturnToTitle: () => void;
@@ -20,6 +21,7 @@ interface RoutineCompleteScreenProps {
 export const RoutineCompleteScreen: React.FC<RoutineCompleteScreenProps> = ({
   skills,
   todaySessions,
+  completedSkillIds,
   streak,
   onRestartRoutine,
   onReturnToTitle,
@@ -79,28 +81,40 @@ export const RoutineCompleteScreen: React.FC<RoutineCompleteScreenProps> = ({
         {/* Practiced Skills List with Teal Progress Graphs */}
         <div className="w-full space-y-3 mb-8">
           {activeSkills.map((skill) => {
-            const history = storageManager.getSkillHistory(skill.id);
-            // Always retrieve the MOST RECENT confirmed session for this skill
-            const mostRecentSession =
-              [...todaySessions].reverse().find((s) => s.skillId === skill.id) ||
-              (history.length > 0 ? history[history.length - 1] : null);
-            const latestBpm = mostRecentSession ? mostRecentSession.bpm : skill.personalBestBpm;
+            const isCompletedInSession = completedSkillIds ? completedSkillIds.has(skill.id) : true;
+            const isSkipped = !isCompletedInSession;
 
-            const isNewPb = mostRecentSession?.isPersonalBest || latestBpm >= skill.personalBestBpm;
+            const history = storageManager.getSkillHistory(skill.id);
+            // If completed in this session, retrieve the most recent session from today or history
+            const mostRecentSession = isSkipped
+              ? null
+              : ([...todaySessions].reverse().find((s) => s.skillId === skill.id) ||
+                (history.length > 0 ? history[history.length - 1] : null));
+
+            const latestBpm = mostRecentSession ? mostRecentSession.bpm : skill.personalBestBpm;
+            const isNewPb = !isSkipped && (mostRecentSession?.isPersonalBest || latestBpm >= skill.personalBestBpm);
 
             return (
               <div
                 key={skill.id}
                 className={`w-full bg-neutral-900/80 border rounded-2xl p-3.5 flex flex-col gap-2.5 shadow-md transition-all ${
-                  isNewPb
+                  isSkipped
+                    ? 'border-neutral-800/80 opacity-80'
+                    : isNewPb
                     ? 'border-cyan-500/50 shadow-[0_0_20px_rgba(6,182,212,0.18)]'
                     : 'border-neutral-800 hover:border-neutral-700'
                 }`}
               >
-                {/* Header row: Checkmark, Title, Sticking, BPM stats, and Hibernate/Trash actions */}
+                {/* Header row: Checkmark/Skip, Title, Sticking, BPM stats, and Hibernate/Trash actions */}
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2.5 text-left min-w-0 flex-1">
-                    <CheckCircle className={`w-4 h-4 shrink-0 ${isNewPb ? 'text-cyan-400 drop-shadow-[0_0_6px_rgba(34,211,238,0.6)]' : 'text-emerald-400'}`} />
+                    {isSkipped ? (
+                      <span className="w-4 h-4 rounded-full border border-neutral-600 flex items-center justify-center shrink-0 text-neutral-500 font-mono text-[10px]">
+                        –
+                      </span>
+                    ) : (
+                      <CheckCircle className={`w-4 h-4 shrink-0 ${isNewPb ? 'text-cyan-400 drop-shadow-[0_0_6px_rgba(34,211,238,0.6)]' : 'text-emerald-400'}`} />
+                    )}
                     <div className="min-w-0 pr-2">
                       <div className="text-sm font-bold text-white truncate">{skill.title}</div>
                       {skill.sticking && (
@@ -115,12 +129,14 @@ export const RoutineCompleteScreen: React.FC<RoutineCompleteScreenProps> = ({
                     <div className="text-right">
                       <div
                         className={`text-base font-black font-mono transition-colors ${
-                          isNewPb
+                          isSkipped
+                            ? 'text-white'
+                            : isNewPb
                             ? 'text-cyan-300 drop-shadow-[0_0_10px_rgba(34,211,238,0.7)]'
                             : 'text-white'
                         }`}
                       >
-                        {latestBpm} BPM
+                        {isSkipped ? '--- BPM' : `${latestBpm} BPM`}
                       </div>
                       <div className="text-[10px] text-amber-400 font-semibold uppercase">
                         Best: {skill.personalBestBpm}
@@ -156,7 +172,12 @@ export const RoutineCompleteScreen: React.FC<RoutineCompleteScreenProps> = ({
                 {/* Progress Graph & Dynamic Session Result Area */}
                 <div className="pt-2 border-t border-neutral-800/70 flex items-center justify-between">
                   <div className="flex items-center gap-1.5 text-[11px] font-mono">
-                    {isNewPb ? (
+                    {isSkipped ? (
+                      <span className="flex items-center gap-1.5 text-neutral-500">
+                        <span className="w-1.5 h-1.5 rounded-full bg-neutral-600" />
+                        <span>Skipped</span>
+                      </span>
+                    ) : isNewPb ? (
                       <span className="flex items-center gap-1.5 text-cyan-300 font-bold drop-shadow-[0_0_6px_rgba(34,211,238,0.5)]">
                         <Sparkles className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
                         <span>New Personal Best!</span>
@@ -169,14 +190,20 @@ export const RoutineCompleteScreen: React.FC<RoutineCompleteScreenProps> = ({
                     )}
                   </div>
 
-                  <TealProgressGraph
-                    history={history}
-                    personalBestBpm={skill.personalBestBpm}
-                    currentBpm={latestBpm}
-                    width={130}
-                    height={30}
-                    showLabels={true}
-                  />
+                  {isSkipped ? (
+                    <div className="text-[10px] font-mono text-neutral-600 pr-1 select-none">
+                      Skipped in session
+                    </div>
+                  ) : (
+                    <TealProgressGraph
+                      history={history}
+                      personalBestBpm={skill.personalBestBpm}
+                      currentBpm={latestBpm}
+                      width={130}
+                      height={30}
+                      showLabels={true}
+                    />
+                  )}
                 </div>
               </div>
             );
