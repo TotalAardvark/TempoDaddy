@@ -15,11 +15,13 @@ import {
   ArrowUpDown,
   Check,
   Pencil,
+  Cloud,
 } from 'lucide-react';
 import type { Skill, PresetSkill, Subdivision } from '../types';
 import { PRESET_SKILLS } from '../data/initialSkills';
 import { storageManager } from '../storage/storageManager';
 import { TealProgressGraph } from './TealProgressGraph';
+import { SyncModal } from './SyncModal';
 
 interface SkillLibraryModalProps {
   isOpen: boolean;
@@ -33,6 +35,7 @@ interface SkillLibraryModalProps {
   onExportData: () => void;
   onImportData: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onHibernateSkill: (id: string) => void;
+  onDataReloaded?: () => void;
 }
 
 export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
@@ -47,11 +50,13 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
   onExportData,
   onImportData,
   onHibernateSkill,
+  onDataReloaded,
 }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [activeTab, setActiveTab] = useState<'presets' | 'custom'>('presets');
   const [hibernatedExpanded, setHibernatedExpanded] = useState(false);
   const [isReorderingMode, setIsReorderingMode] = useState(false);
+  const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
 
   // Edit skill dialog state
   const [editingSkill, setEditingSkill] = useState<Skill | null>(null);
@@ -73,6 +78,7 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
   useEffect(() => {
     if (!isOpen) return;
     const handleKey = (e: KeyboardEvent) => {
+      if (isSyncModalOpen) return;
       if (e.key === 'Escape') {
         e.preventDefault();
         if (isAdding) {
@@ -86,7 +92,7 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [isOpen, isAdding, editingSkill, onClose]);
+  }, [isOpen, isAdding, editingSkill, isSyncModalOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -853,9 +859,9 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
           )}
         </div>
 
-        {/* Modal Footer: Data Backup / Import */}
+        {/* Modal Footer: Data Backup / Import / Cloud Sync */}
         <div className="p-4 border-t border-neutral-800/80 bg-neutral-950/80 flex items-center justify-between text-xs text-neutral-400">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             <button
               type="button"
               onClick={onExportData}
@@ -863,10 +869,10 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
               title="Backup your practice history"
             >
               <Download className="w-3.5 h-3.5" />
-              <span>Backup Data</span>
+              <span>Backup</span>
             </button>
 
-            <span>•</span>
+            <span className="text-neutral-700">•</span>
 
             <label className="flex items-center gap-1 hover:text-white cursor-pointer transition">
               <Upload className="w-3.5 h-3.5" />
@@ -878,13 +884,29 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
                 className="hidden"
               />
             </label>
-          </div>
 
-          <span className="text-[11px] text-neutral-500 font-mono text-right">
-            All data is stored locally & privately.
-          </span>
+            <span className="text-neutral-700">•</span>
+
+            <button
+              type="button"
+              onClick={() => setIsSyncModalOpen(true)}
+              className="flex items-center gap-1 text-amber-400 hover:text-amber-300 font-medium transition"
+              title="Cloud Sync"
+            >
+              <Cloud className="w-3.5 h-3.5" />
+              <span>Sync</span>
+            </button>
+          </div>
         </div>
       </div>
+
+      <SyncModal
+        isOpen={isSyncModalOpen}
+        onClose={() => setIsSyncModalOpen(false)}
+        onDataChanged={() => {
+          onDataReloaded?.();
+        }}
+      />
     </div>
   );
 };

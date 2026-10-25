@@ -13,6 +13,12 @@ import {
 import type { Skill, Subdivision, PracticeSessionLog, TempoRampSettings, MetronomeTimbre } from './types';
 import { MetronomeEngine, type MetronomeTickEvent } from './audio/metronomeEngine';
 import { storageManager } from './storage/storageManager';
+import {
+  triggerDebouncedCloudSync,
+  forceCloudSync,
+  loadCloudProfile,
+  getStoredProfileId,
+} from './storage/cloudSync';
 import { CircularDial } from './components/CircularDial';
 import { SubdivisionControls } from './components/SubdivisionControls';
 import { ProgressSparkline } from './components/ProgressSparkline';
@@ -177,6 +183,7 @@ export default function App() {
     const nextTimbre = timbres[nextIdx];
     setTimbre(nextTimbre);
     storageManager.saveMetronomeTimbre(nextTimbre);
+    triggerDebouncedCloudSync();
     if (engineRef.current) {
       engineRef.current.setTimbre(nextTimbre);
       if (!isPlaying) {
@@ -230,6 +237,7 @@ export default function App() {
   const handleSaveTempoRampSettings = (newSettings: TempoRampSettings) => {
     storageManager.saveTempoRampSettings(newSettings);
     setTempoRampSettings(newSettings);
+    triggerDebouncedCloudSync();
     setIsTempoRampModalOpen(false);
 
     // If currently practicing and not actively playing, optionally recalculate starting target
@@ -429,6 +437,7 @@ export default function App() {
 
     // Store session and update PB in storage
     storageManager.addSession(newSession);
+    triggerDebouncedCloudSync();
 
     // Refresh skills and sessions state
     const updatedSkills = storageManager.getSkills();
@@ -464,12 +473,14 @@ export default function App() {
     const updated = [...skills, newSkill];
     setSkills(updated);
     storageManager.saveSkills(updated);
+    triggerDebouncedCloudSync();
   };
 
   const handleUpdateSkill = (id: string, updatedFields: Partial<Skill>) => {
     const updated = skills.map((s) => (s.id === id ? { ...s, ...updatedFields } : s));
     setSkills(updated);
     storageManager.saveSkills(updated);
+    triggerDebouncedCloudSync();
 
     // If active skill was updated, update engine if needed
     if (currentSkill && currentSkill.id === id) {
@@ -485,6 +496,7 @@ export default function App() {
     const updatedActive = updated.filter((s) => !s.isHibernated);
     setSkills(updated);
     storageManager.saveSkills(updated);
+    triggerDebouncedCloudSync();
     if (activeSkillIndex >= updatedActive.length) {
       setActiveSkillIndex(Math.max(0, updatedActive.length - 1));
     }
@@ -494,6 +506,7 @@ export default function App() {
     const updated = storageManager.toggleHibernate(id);
     const updatedActive = updated.filter((s) => !s.isHibernated);
     setSkills(updated);
+    triggerDebouncedCloudSync();
     if (activeSkillIndex >= updatedActive.length) {
       setActiveSkillIndex(Math.max(0, updatedActive.length - 1));
     }
@@ -504,6 +517,7 @@ export default function App() {
     const updated = skills.map((s) => (s.id === currentSkill.id ? { ...s, notes } : s));
     setSkills(updated);
     storageManager.saveSkills(updated);
+    triggerDebouncedCloudSync();
   };
 
   const handleResetPbCounter = () => {
@@ -518,6 +532,7 @@ export default function App() {
     copy.splice(toIndex, 0, moved);
     setSkills(copy);
     storageManager.saveSkills(copy);
+    triggerDebouncedCloudSync();
   };
 
   const handleSelectSkillToPractice = (globalIndex: number) => {
@@ -561,9 +576,8 @@ export default function App() {
     reader.onload = (event) => {
       const content = event.target?.result as string;
       if (storageManager.importDataJson(content)) {
-        setSkills(storageManager.getSkills());
-        setTodaySessions(storageManager.getSessions());
-        setStreak(storageManager.calculateStreak());
+        handleReloadAllData();
+        triggerDebouncedCloudSync();
         alert('Data imported successfully!');
       } else {
         alert('Failed to parse backup JSON file.');
@@ -571,6 +585,44 @@ export default function App() {
     };
     reader.readAsText(file);
   };
+
+  const handleReloadAllData = () => {
+    const freshSkills = storageManager.getSkills();
+    setSkills(freshSkills);
+    setTodaySessions(
+      storageManager.getSessions().filter((s) => s.date.slice(0, 10) === new Date().toISOString().slice(0, 10))
+    );
+    setStreak(storageManager.calculateStreak());
+    setWeeklyPbCount(storageManager.getWeeklyPbCount());
+    setPbStats(storageManager.getPbStats());
+    setTimbre(storageManager.getMetronomeTimbre());
+    setTempoRampSettings(storageManager.getTempoRampSettings());
+    const active = freshSkills.filter((s) => !s.isHibernated);
+    if (active.length > 0) {
+      setActiveSkillIndex(0);
+      loadSkill(active[0], false);
+    }
+  };
+
+  // Sync cloud profile on app startup if linked, and force sync before window unloads
+  useEffect(() => {
+    const profileId = getStoredProfileId();
+    if (profileId) {
+      loadCloudProfile(profileId).then((res) => {
+        if (res.success) {
+          handleReloadAllData();
+        }
+      }).catch((err) => {
+        console.warn('Initial cloud profile fetch warning:', err);
+      });
+    }
+
+    const handleBeforeUnload = () => {
+      forceCloudSync();
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
 
   // History for active skill
   const currentSkillHistory = useMemo(() => {
@@ -618,6 +670,7 @@ export default function App() {
           onExportData={handleExportData}
           onImportData={handleImportData}
           onHibernateSkill={handleHibernateSkill}
+          onDataReloaded={handleReloadAllData}
         />
       </>
     );
@@ -653,6 +706,7 @@ export default function App() {
           onExportData={handleExportData}
           onImportData={handleImportData}
           onHibernateSkill={handleHibernateSkill}
+          onDataReloaded={handleReloadAllData}
         />
       </>
     );
@@ -924,6 +978,7 @@ export default function App() {
         onExportData={handleExportData}
         onImportData={handleImportData}
         onHibernateSkill={handleHibernateSkill}
+        onDataReloaded={handleReloadAllData}
       />
     </div>
   );
