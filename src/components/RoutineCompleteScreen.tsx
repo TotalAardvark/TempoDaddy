@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Trophy, Flame, CheckCircle, RefreshCw, ListMusic, Trash2, Sun, ChevronDown, ChevronRight, Sparkles } from 'lucide-react';
+import { Trophy, Flame, CheckCircle, ListMusic, Trash2, Sun, ChevronDown, ChevronRight, Sparkles, RotateCcw } from 'lucide-react';
 import type { Skill, PracticeSessionLog } from '../types';
 import { storageManager } from '../storage/storageManager';
 import { TealProgressGraph } from './TealProgressGraph';
@@ -11,7 +11,8 @@ interface RoutineCompleteScreenProps {
   todaySessions: PracticeSessionLog[];
   completedSkillIds?: Set<string>;
   streak: number;
-  onRestartRoutine: () => void;
+  onRestartRoutine?: () => void;
+  onReturnToStart?: () => void;
   onReturnToTitle: () => void;
   onOpenLibrary: () => void;
   onHibernateSkill: (id: string) => void;
@@ -23,7 +24,7 @@ export const RoutineCompleteScreen: React.FC<RoutineCompleteScreenProps> = ({
   todaySessions,
   completedSkillIds,
   streak,
-  onRestartRoutine,
+  onReturnToStart,
   onReturnToTitle,
   onOpenLibrary,
   onHibernateSkill,
@@ -284,17 +285,17 @@ export const RoutineCompleteScreen: React.FC<RoutineCompleteScreenProps> = ({
         <div className="w-full flex flex-col gap-3">
           <button
             type="button"
-            onClick={onRestartRoutine}
-            className="w-full py-3.5 rounded-2xl bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-neutral-950 font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition"
+            onClick={onReturnToStart || onReturnToTitle}
+            className="w-full py-3.5 rounded-2xl bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-neutral-950 font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition cursor-pointer"
           >
-            <RefreshCw className="w-4 h-4" />
-            <span>Practice Routine Again</span>
+            <RotateCcw className="w-4 h-4" />
+            <span>Return to Start</span>
           </button>
 
           <button
             type="button"
             onClick={onOpenLibrary}
-            className="w-full py-3.5 rounded-2xl bg-neutral-800 hover:bg-neutral-700 active:bg-neutral-600 border border-neutral-700 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-md transition"
+            className="w-full py-3.5 rounded-2xl bg-neutral-800 hover:bg-neutral-700 active:bg-neutral-600 border border-neutral-700 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-md transition cursor-pointer"
           >
             <ListMusic className="w-4 h-4 text-neutral-400" />
             <span>Manage Skills Library</span>

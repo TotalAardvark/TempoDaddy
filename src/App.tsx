@@ -686,6 +686,10 @@ export default function App() {
           completedSkillIds={completedSkillIds}
           streak={streak}
           onRestartRoutine={handleRestartRoutine}
+          onReturnToStart={() => {
+            setIsRoutineFinished(false);
+            setIsColdStart(true);
+          }}
           onReturnToTitle={() => {
             setIsRoutineFinished(false);
             setIsColdStart(true);
@@ -737,54 +741,51 @@ export default function App() {
 
         {/* Streak, Weekly PB Badge & Library Button */}
         <div className="flex items-center gap-2">
-          {/* Trophy Badge for Personal Bests */}
-          {(weeklyPbCount > 0 || pbStats.allTime > 0) && (
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsPbTooltipOpen((prev) => !prev);
-                  setIsStreakTooltipOpen(false);
-                }}
-                className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/10 hover:bg-amber-500/20 active:bg-amber-500/30 border border-amber-500/30 hover:border-amber-500/50 rounded-full text-amber-300 text-xs font-bold shadow-sm shadow-amber-500/15 transition cursor-pointer"
-                title="Personal Bests stats (click to expand)"
-              >
-                <Trophy className="w-3.5 h-3.5 fill-amber-400 text-amber-400 shrink-0" strokeWidth={2.25} />
-                <span>{weeklyPbCount}</span>
-              </button>
+          {/* Cyan Trophy Badge for Personal Bests */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => {
+                setIsPbTooltipOpen((prev) => !prev);
+                setIsStreakTooltipOpen(false);
+              }}
+              className="flex items-center gap-1.5 px-2.5 py-1 bg-cyan-500/10 hover:bg-cyan-500/20 active:bg-cyan-500/30 border border-cyan-500/30 hover:border-cyan-500/50 rounded-full text-cyan-300 text-xs font-bold shadow-sm shadow-cyan-500/15 transition cursor-pointer"
+              title="Personal Bests stats (click to expand)"
+            >
+              <Trophy className="w-3.5 h-3.5 fill-cyan-400 text-cyan-400 shrink-0" strokeWidth={2.25} />
+              <span>{weeklyPbCount}</span>
+            </button>
 
-              <PersonalBestsTooltip
-                isOpen={isPbTooltipOpen}
-                onClose={() => setIsPbTooltipOpen(false)}
-                stats={pbStats}
-                onResetCounter={handleResetPbCounter}
-              />
-            </div>
-          )}
+            <PersonalBestsTooltip
+              isOpen={isPbTooltipOpen}
+              onClose={() => setIsPbTooltipOpen(false)}
+              stats={pbStats}
+              onResetCounter={handleResetPbCounter}
+            />
+          </div>
 
-          {streak > 0 && (
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsStreakTooltipOpen((prev) => !prev);
-                  setIsPbTooltipOpen(false);
-                }}
-                className="flex items-center gap-1 px-2.5 py-1 bg-amber-500/10 hover:bg-amber-500/20 active:bg-amber-500/30 border border-amber-500/25 hover:border-amber-500/40 rounded-full text-amber-400 text-xs font-bold transition cursor-pointer"
-                title="Practice streak calendar (click to expand)"
-              >
-                <Flame className="w-3.5 h-3.5 fill-amber-400" />
-                <span>{streak}d</span>
-              </button>
+          {/* Yellow Flame Streak Badge with Calendar Tooltip */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => {
+                setIsStreakTooltipOpen((prev) => !prev);
+                setIsPbTooltipOpen(false);
+              }}
+              className="flex items-center gap-1 px-2.5 py-1 bg-amber-500/10 hover:bg-amber-500/20 active:bg-amber-500/30 border border-amber-500/25 hover:border-amber-500/40 rounded-full text-amber-400 text-xs font-bold transition cursor-pointer"
+              title="Practice streak calendar (click to expand)"
+            >
+              <Flame className="w-3.5 h-3.5 fill-amber-400" />
+              <span>{streak}d</span>
+            </button>
 
-              <StreakCalendarTooltip
-                isOpen={isStreakTooltipOpen}
-                onClose={() => setIsStreakTooltipOpen(false)}
-                streak={streak}
-                practicedDates={practicedDates}
-              />
-            </div>
-          )}
+            <StreakCalendarTooltip
+              isOpen={isStreakTooltipOpen}
+              onClose={() => setIsStreakTooltipOpen(false)}
+              streak={streak}
+              practicedDates={practicedDates}
+            />
+          </div>
 
           <button
             type="button"
