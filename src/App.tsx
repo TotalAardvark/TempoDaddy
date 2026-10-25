@@ -384,17 +384,19 @@ export default function App() {
       } else if (e.key === 'Enter') {
         e.preventDefault();
         handleDoneClick();
-      } else if (e.key === '+' || e.key === '=') {
+      } else if (e.key === '+' || e.key === '=' || e.key === 'ArrowRight') {
         e.preventDefault();
         const now = Date.now();
-        const isRapid = lastBpmKeyRef.current.key === '+' && now - lastBpmKeyRef.current.time < 380;
+        // Hold-to-repeat or fast bursts switch to faster/larger increments (step = 3),
+        // while normal deliberate taps (< 200 BPM or >= 120ms) increment strictly by 1.
+        const isRapid = e.repeat || (lastBpmKeyRef.current.key === '+' && now - lastBpmKeyRef.current.time < 120);
         lastBpmKeyRef.current = { key: '+', time: now };
         const step = isRapid ? 3 : 1;
         handleUserBpmChange((prev: number) => Math.min(260, prev + step));
-      } else if (e.key === '-' || e.key === '_') {
+      } else if (e.key === '-' || e.key === '_' || e.key === 'ArrowLeft') {
         e.preventDefault();
         const now = Date.now();
-        const isRapid = lastBpmKeyRef.current.key === '-' && now - lastBpmKeyRef.current.time < 380;
+        const isRapid = e.repeat || (lastBpmKeyRef.current.key === '-' && now - lastBpmKeyRef.current.time < 120);
         lastBpmKeyRef.current = { key: '-', time: now };
         const step = isRapid ? 3 : 1;
         handleUserBpmChange((prev: number) => Math.max(40, prev - step));
