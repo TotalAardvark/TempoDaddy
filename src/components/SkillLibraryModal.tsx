@@ -371,6 +371,8 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
                             <TealProgressGraph
                               history={history}
                               personalBestBpm={skill.personalBestBpm}
+                              skillTitle={skill.title}
+                              sticking={skill.sticking}
                               width={95}
                               height={28}
                               showLabels={false}

@@ -1,9 +1,11 @@
-import type { Skill, PracticeSessionLog, TempoRampSettings } from '../types';
+import type { Skill, PracticeSessionLog, TempoRampSettings, MetronomeTimbre } from '../types';
 import { INITIAL_SKILLS } from '../data/initialSkills';
 
 const SKILLS_KEY = 'tempo_skills_v1';
 const SESSIONS_KEY = 'tempo_sessions_v1';
 const TEMPO_RAMP_KEY = 'tempo_coach_ramp_settings_v1';
+const TIMBRE_KEY = 'tempo_coach_metronome_timbre_v1';
+const DEFAULT_TIMBRE: MetronomeTimbre = 'woodblock';
 
 export const DEFAULT_RAMP_SETTINGS: TempoRampSettings = {
   startPercent: 80,
@@ -225,6 +227,29 @@ export const storageManager = {
       localStorage.setItem(TEMPO_RAMP_KEY, JSON.stringify(settings));
     } catch (e) {
       console.error('Failed to save tempo ramp settings', e);
+    }
+  },
+
+  getMetronomeTimbre(): MetronomeTimbre {
+    try {
+      const stored = localStorage.getItem(TIMBRE_KEY);
+      if (stored === 'woodblock' || stored === 'beep' || stored === 'loud') {
+        return stored;
+      }
+      if (stored === 'rimshot') {
+        return 'loud';
+      }
+    } catch (e) {
+      console.error('Failed to get metronome timbre', e);
+    }
+    return DEFAULT_TIMBRE;
+  },
+
+  saveMetronomeTimbre(timbre: MetronomeTimbre): void {
+    try {
+      localStorage.setItem(TIMBRE_KEY, timbre);
+    } catch (e) {
+      console.error('Failed to save metronome timbre', e);
     }
   },
 

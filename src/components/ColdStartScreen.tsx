@@ -204,6 +204,8 @@ export const ColdStartScreen: React.FC<ColdStartScreenProps> = ({
                 <TealProgressGraph
                   history={history}
                   personalBestBpm={firstSkill.personalBestBpm}
+                  skillTitle={firstSkill.title}
+                  sticking={firstSkill.sticking}
                   width={110}
                   height={34}
                   showLabels={false}

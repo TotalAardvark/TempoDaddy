@@ -1,5 +1,7 @@
 export type Subdivision = '1/4' | '1/8' | '1/16';
 
+export type MetronomeTimbre = 'woodblock' | 'beep' | 'loud';
+
 export type SkillCategory = 'drumming' | 'piano' | 'guitar' | 'general';
 
 export interface PracticeSessionLog {

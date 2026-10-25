@@ -7,8 +7,9 @@ import {
   Check,
   Flame,
   LogOut,
+  Volume2,
 } from 'lucide-react';
-import type { Skill, Subdivision, PracticeSessionLog, TempoRampSettings } from './types';
+import type { Skill, Subdivision, PracticeSessionLog, TempoRampSettings, MetronomeTimbre } from './types';
 import { MetronomeEngine, type MetronomeTickEvent } from './audio/metronomeEngine';
 import { storageManager } from './storage/storageManager';
 import { CircularDial } from './components/CircularDial';
@@ -25,6 +26,12 @@ import { PersonalBestsTooltip } from './components/PersonalBestsTooltip';
 import { StreakCalendarTooltip } from './components/StreakCalendarTooltip';
 import { TempoRampModal } from './components/TempoRampModal';
 
+const TIMBRE_CONFIG: Record<MetronomeTimbre, { name: string; description: string }> = {
+  woodblock: { name: 'Woodblock', description: 'Warm acoustic woodblock with 2kHz transient' },
+  beep: { name: 'Beep', description: 'Crisp digital beep with high-frequency cut' },
+  loud: { name: 'Loud', description: 'Piercing loud click with white noise transient' },
+};
+
 export default function App() {
   // Persistence state
   const [skills, setSkills] = useState<Skill[]>(() => storageManager.getSkills());
@@ -37,6 +44,7 @@ export default function App() {
   const [pbStats, setPbStats] = useState(() => storageManager.getPbStats());
   const [isPbTooltipOpen, setIsPbTooltipOpen] = useState<boolean>(false);
   const [isStreakTooltipOpen, setIsStreakTooltipOpen] = useState<boolean>(false);
+  const [timbre, setTimbre] = useState<MetronomeTimbre>(() => storageManager.getMetronomeTimbre());
 
   // Global Tempo Ramp settings
   const [tempoRampSettings, setTempoRampSettings] = useState<TempoRampSettings>(() =>
@@ -117,7 +125,7 @@ export default function App() {
 
   // Initialize engine once
   useEffect(() => {
-    const engine = new MetronomeEngine(bpm, subdivision, isTriplet);
+    const engine = new MetronomeEngine(bpm, subdivision, isTriplet, timbre);
     engine.setOnTick((event) => {
       setLastTick(event);
 
@@ -154,6 +162,27 @@ export default function App() {
       engineRef.current.setSubdivision(subdivision, isTriplet);
     }
   }, [subdivision, isTriplet]);
+
+  useEffect(() => {
+    if (engineRef.current) {
+      engineRef.current.setTimbre(timbre);
+    }
+  }, [timbre]);
+
+  // Cycle metronome timbre between woodblock, digital beep, and loud
+  const handleCycleTimbre = () => {
+    const timbres: MetronomeTimbre[] = ['woodblock', 'beep', 'loud'];
+    const nextIdx = (timbres.indexOf(timbre) + 1) % timbres.length;
+    const nextTimbre = timbres[nextIdx];
+    setTimbre(nextTimbre);
+    storageManager.saveMetronomeTimbre(nextTimbre);
+    if (engineRef.current) {
+      engineRef.current.setTimbre(nextTimbre);
+      if (!isPlaying) {
+        engineRef.current.playPreview(nextTimbre);
+      }
+    }
+  };
 
   // User manual tempo adjustment handler (cancels active tempo ramp)
   const handleUserBpmChange = useCallback((newBpm: number | ((prev: number) => number)) => {
@@ -631,12 +660,22 @@ export default function App() {
     <div className="h-[100dvh] max-h-[100dvh] overflow-hidden w-full flex flex-col justify-between items-center bg-gradient-to-b from-neutral-950 via-neutral-900 to-black text-white px-4 pt-[max(0.5rem,env(safe-area-inset-top))] pb-[max(0.5rem,env(safe-area-inset-bottom))] select-none">
       {/* Top Header Navigation */}
       <header className="w-full max-w-md flex items-center justify-between shrink-0">
-        {/* Routine Queue Progress Indicator */}
+        {/* Routine Queue Progress Indicator & Sound Timbre Selector */}
         <div className="flex items-center gap-2">
           <span className="px-2.5 py-1 rounded-full bg-neutral-800 text-xs font-mono font-bold text-neutral-300">
             {activeSkillIndex + 1} / {activeSkills.length}
           </span>
-          <span className="text-xs text-neutral-400 font-medium">Daily Routine</span>
+
+          {/* Sound Timbre Toggle Button */}
+          <button
+            type="button"
+            onClick={handleCycleTimbre}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-neutral-800/80 hover:bg-neutral-800 active:bg-neutral-700 border border-neutral-700/60 hover:border-amber-500/40 text-xs font-mono font-medium text-neutral-300 transition cursor-pointer"
+            title={`Metronome Sound: ${TIMBRE_CONFIG[timbre].name} (${TIMBRE_CONFIG[timbre].description}) - click to change`}
+          >
+            <Volume2 className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+            <span className="text-[11px] font-semibold">{TIMBRE_CONFIG[timbre].name}</span>
+          </button>
         </div>
 
         {/* Streak, Weekly PB Badge & Library Button */}
@@ -740,6 +779,8 @@ export default function App() {
               personalBestBpm={currentSkill.personalBestBpm}
               history={currentSkillHistory}
               startingBpm={startingBpm}
+              skillTitle={currentSkill.title}
+              sticking={currentSkill.sticking}
             />
           )}
         </div>

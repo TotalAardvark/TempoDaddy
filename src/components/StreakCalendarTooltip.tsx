@@ -47,11 +47,11 @@ export const StreakCalendarTooltip: React.FC<StreakCalendarTooltipProps> = ({
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Monday as start of week (0: Mon, ..., 6: Sun)
-    const dayOfWeek = (today.getDay() + 6) % 7;
-    const currentWeekMon = new Date(today.getFullYear(), today.getMonth(), today.getDate() - dayOfWeek);
+    // Sunday as start of week (0: Sun, ..., 6: Sat)
+    const dayOfWeek = today.getDay();
+    const currentWeekSun = new Date(today.getFullYear(), today.getMonth(), today.getDate() - dayOfWeek);
     // 3 weeks into the past
-    const startMon = new Date(currentWeekMon.getFullYear(), currentWeekMon.getMonth(), currentWeekMon.getDate() - 21);
+    const startSun = new Date(currentWeekSun.getFullYear(), currentWeekSun.getMonth(), currentWeekSun.getDate() - 21);
 
     const formatYmd = (d: Date) => {
       const y = d.getFullYear();
@@ -70,7 +70,7 @@ export const StreakCalendarTooltip: React.FC<StreakCalendarTooltipProps> = ({
     }[] = [];
 
     for (let i = 0; i < 28; i++) {
-      const d = new Date(startMon.getFullYear(), startMon.getMonth(), startMon.getDate() + i);
+      const d = new Date(startSun.getFullYear(), startSun.getMonth(), startSun.getDate() + i);
       const dateStr = formatYmd(d);
       grid.push({
         dateNumber: d.getDate(),
@@ -110,12 +110,12 @@ export const StreakCalendarTooltip: React.FC<StreakCalendarTooltipProps> = ({
 
       {/* Weekday indicators */}
       <div className="grid grid-cols-7 gap-1 text-center mb-1 text-[9px] font-mono font-medium text-neutral-600">
+        <span>S</span>
         <span>M</span>
         <span>T</span>
         <span>W</span>
         <span>T</span>
         <span>F</span>
-        <span>S</span>
         <span>S</span>
       </div>
 
