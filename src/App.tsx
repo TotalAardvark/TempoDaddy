@@ -720,10 +720,10 @@ export default function App() {
   return (
     <div
       style={{ paddingTop: 'var(--app-header-padding-top)' }}
-      className="h-[100dvh] max-h-[100dvh] overflow-hidden w-full flex flex-col justify-between items-center bg-gradient-to-b from-neutral-950 via-neutral-900 to-black text-white px-4 pb-[max(0.5rem,env(safe-area-inset-bottom))] select-none"
+      className="h-[100dvh] max-h-[100dvh] overflow-hidden w-full flex flex-col items-center bg-gradient-to-b from-neutral-950 via-neutral-900 to-black text-white px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] select-none"
     >
       {/* Top Header Navigation */}
-      <header className="w-full max-w-md flex items-center justify-between shrink-0 mb-1">
+      <header className="w-full max-w-md flex items-center justify-between shrink-0 pb-2">
         {/* Routine Queue Progress Indicator & Sound Timbre Selector */}
         <div className="flex items-center gap-2">
           <span className="px-2.5 py-1 rounded-full bg-neutral-800 text-xs font-mono font-bold text-neutral-300">
@@ -805,83 +805,86 @@ export default function App() {
         </div>
       </header>
 
-      {/* Upper Info Section: Title, Sticking & Progress Card */}
-      <div className="shrink-0 flex flex-col items-center justify-start w-full max-w-md pt-[50px]">
-        <div className="w-full text-center mb-1">
-          <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-white mb-1.5 sm:mb-2">
-            {currentSkill?.title}
-          </h1>
+      {/* Main Core Area: Proportional distribution without chasms */}
+      <div className="flex-1 w-full max-w-md flex flex-col items-center justify-between min-h-0 py-1">
+        {/* Upper Info Section: Title, Sticking & Progress Card grouped naturally */}
+        <div className="shrink-0 flex flex-col items-center w-full pt-1.5 sm:pt-2">
+          <div className="w-full text-center mb-1">
+            <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-white mb-1.5 sm:mb-2">
+              {currentSkill?.title}
+            </h1>
 
-          {currentSkill?.sticking ? (
-            <div className="mb-1">
-              <StickingDisplay sticking={currentSkill.sticking} />
-            </div>
-          ) : (
-            <span className="text-xs text-neutral-500 uppercase tracking-wider">
-              {currentSkill?.category}
-            </span>
-          )}
+            {currentSkill?.sticking ? (
+              <div className="mb-1">
+                <StickingDisplay sticking={currentSkill.sticking} />
+              </div>
+            ) : (
+              <span className="text-xs text-neutral-500 uppercase tracking-wider">
+                {currentSkill?.category}
+              </span>
+            )}
+          </div>
+
+          {/* Hero Personal Best Target & Progress Graph */}
+          <div className="w-full flex justify-center mt-2.5 sm:mt-3">
+            {currentSkill && (
+              <ProgressSparkline
+                personalBestBpm={currentSkill.personalBestBpm}
+                history={currentSkillHistory}
+                startingBpm={startingBpm}
+                skillTitle={currentSkill.title}
+                sticking={currentSkill.sticking}
+              />
+            )}
+          </div>
         </div>
 
-        {/* Hero Personal Best Target & Progress Graph */}
-        <div className="w-full flex justify-center mt-3 sm:mt-4">
-          {currentSkill && (
-            <ProgressSparkline
-              personalBestBpm={currentSkill.personalBestBpm}
-              history={currentSkillHistory}
-              startingBpm={startingBpm}
-              skillTitle={currentSkill.title}
-              sticking={currentSkill.sticking}
+        {/* Circular Dial Metronome: optical center */}
+        <div className="flex flex-col items-center shrink-0 my-auto py-1">
+          <CircularDial
+            bpm={bpm}
+            minBpm={40}
+            maxBpm={260}
+            onBpmChange={handleUserBpmChange}
+            lastTick={lastTick}
+            isPlaying={isPlaying}
+            onOpenTempoRamp={() => setIsTempoRampModalOpen(true)}
+          />
+
+          {/* Compact, unobtrusive concentric subdivision pill ring right under the wheel */}
+          <div className="-mt-1 z-10">
+            <SubdivisionControls
+              subdivision={subdivision}
+              isTriplet={isTriplet}
+              onSubdivisionChange={setSubdivision}
+              onTripletToggle={() => setIsTriplet((prev) => !prev)}
             />
-          )}
+          </div>
         </div>
-      </div>
 
-      {/* Circular Dial Metronome with swipe & Tempo Ramp button */}
-      <div className="flex-1 flex flex-col items-center justify-center shrink-0 min-h-0 -my-1">
-        <CircularDial
-          bpm={bpm}
-          minBpm={40}
-          maxBpm={260}
-          onBpmChange={handleUserBpmChange}
-          lastTick={lastTick}
-          isPlaying={isPlaying}
-          onOpenTempoRamp={() => setIsTempoRampModalOpen(true)}
-        />
-
-        {/* Compact, unobtrusive concentric subdivision pill ring right under the wheel */}
-        <div className="-mt-1 z-10">
-          <SubdivisionControls
-            subdivision={subdivision}
-            isTriplet={isTriplet}
-            onSubdivisionChange={setSubdivision}
-            onTripletToggle={() => setIsTriplet((prev) => !prev)}
+        {/* Rehearsal Notes Field */}
+        <div className="shrink-0 flex flex-col items-center justify-center w-full max-w-md pt-1 pb-1">
+          <SkillNotesDialog
+            notes={currentSkill?.notes}
+            onSaveNotes={handleUpdateNotes}
           />
         </div>
-      </div>
 
-      {/* Lower Section: Adaptive, Inobtrusive Rehearsal Notes Field */}
-      <div className="shrink-0 flex flex-col items-center justify-center w-full max-w-md pt-2 sm:pt-3 pb-0.5">
-        <SkillNotesDialog
-          notes={currentSkill?.notes}
-          onSaveNotes={handleUpdateNotes}
-        />
-      </div>
-
-      {/* Done Button */}
-      <div className="shrink-0 w-full flex flex-col items-center justify-center pt-2 pb-2 sm:pb-3">
-        <button
-          type="button"
-          onClick={handleDoneClick}
-          className="w-[95%] max-w-[323px] py-3 sm:py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-300 text-neutral-950 font-black text-base sm:text-lg flex items-center justify-center gap-2 shadow-xl shadow-amber-500/25 active:scale-98 transition transform cursor-pointer"
-        >
-          <Check className="w-5 h-5 sm:w-6 sm:h-6 stroke-[3]" />
-          <span>DONE (LOG PERFORMANCE)</span>
-        </button>
+        {/* Done Button: Centered with balanced margins */}
+        <div className="shrink-0 w-full flex flex-col items-center justify-center pt-2 pb-2">
+          <button
+            type="button"
+            onClick={handleDoneClick}
+            className="w-[95%] max-w-[323px] py-3 sm:py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-300 text-neutral-950 font-black text-base sm:text-lg flex items-center justify-center gap-2 shadow-xl shadow-amber-500/25 active:scale-98 transition transform cursor-pointer"
+          >
+            <Check className="w-5 h-5 sm:w-6 sm:h-6 stroke-[3]" />
+            <span>DONE (LOG PERFORMANCE)</span>
+          </button>
+        </div>
       </div>
 
       {/* Auxiliary Controls (Exit, Play/Pause, Skip) */}
-      <footer className="w-full max-w-[340px] shrink-0 pb-1 sm:pb-2">
+      <footer className="w-full max-w-[340px] shrink-0 pt-1 pb-1">
         <div className="flex items-center justify-between px-2 text-neutral-400">
           {/* Exit Button */}
           <button
