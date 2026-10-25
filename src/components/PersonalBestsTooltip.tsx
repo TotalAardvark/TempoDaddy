@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { RotateCcw, X } from 'lucide-react';
+import { RotateCcw, X, Trophy } from 'lucide-react';
 
 interface PersonalBestsTooltipProps {
   isOpen: boolean;
@@ -58,19 +58,7 @@ export const PersonalBestsTooltip: React.FC<PersonalBestsTooltipProps> = ({
       {/* Header */}
       <div className="flex items-center justify-between border-b border-neutral-800/80 pb-2.5 mb-3">
         <div className="flex items-center gap-2">
-          {/* Ascending Comet Icon */}
-          <svg
-            viewBox="0 0 24 24"
-            className="w-4 h-4 fill-none stroke-current stroke-2 text-cyan-400 drop-shadow-[0_0_6px_rgba(34,211,238,0.7)]"
-          >
-            <circle cx="17.5" cy="6.5" r="3" fill="#22d3ee" stroke="#0891b2" strokeWidth="1" />
-            <path
-              d="M15 9L6 18M11 13L4 20M13 7L9 11"
-              strokeLinecap="round"
-              strokeWidth="1.75"
-              className="text-cyan-400"
-            />
-          </svg>
+          <Trophy className="w-4 h-4 fill-amber-400 text-amber-400 drop-shadow-[0_0_6px_rgba(251,191,36,0.6)]" strokeWidth={2.25} />
           <h4 className="text-xs font-bold uppercase tracking-wider text-white font-mono">
             Personal Bests
           </h4>

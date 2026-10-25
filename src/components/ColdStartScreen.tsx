@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Play, Flame, Music, ListMusic } from 'lucide-react';
+import { Play, Flame, Music, ListMusic, Trophy } from 'lucide-react';
 import type { Skill, PracticeSessionLog } from '../types';
 import { TealProgressGraph } from './TealProgressGraph';
 import { PersonalBestsTooltip } from './PersonalBestsTooltip';
@@ -85,7 +85,7 @@ export const ColdStartScreen: React.FC<ColdStartScreenProps> = ({
 
         {/* Right: Three badges (PBs, Streak, Skill Queue/Library) matching practice screen */}
         <div className="flex items-center gap-2">
-          {/* Cyan Ascending Comet Badge for Personal Bests */}
+          {/* Trophy Badge for Personal Bests */}
           {pbStats && (weeklyPbCount > 0 || pbStats.allTime > 0) && (
             <div className="relative" onClick={(e) => e.stopPropagation()}>
               <button
@@ -94,22 +94,10 @@ export const ColdStartScreen: React.FC<ColdStartScreenProps> = ({
                   setIsPbTooltipOpen((prev) => !prev);
                   setIsStreakTooltipOpen(false);
                 }}
-                className="flex items-center gap-1.5 px-2.5 py-1 bg-cyan-500/10 hover:bg-cyan-500/20 active:bg-cyan-500/30 border border-cyan-500/30 hover:border-cyan-500/50 rounded-full text-cyan-300 text-xs font-bold shadow-sm shadow-cyan-500/15 transition cursor-pointer"
+                className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/10 hover:bg-amber-500/20 active:bg-amber-500/30 border border-amber-500/30 hover:border-amber-500/50 rounded-full text-amber-300 text-xs font-bold shadow-sm shadow-amber-500/15 transition cursor-pointer"
                 title="Personal Bests stats (click to expand)"
               >
-                {/* Ascending Comet Icon */}
-                <svg
-                  viewBox="0 0 24 24"
-                  className="w-3.5 h-3.5 fill-none stroke-current stroke-2 drop-shadow-[0_0_4px_rgba(34,211,238,0.6)]"
-                >
-                  <circle cx="17.5" cy="6.5" r="3" fill="#22d3ee" stroke="#0891b2" strokeWidth="1" />
-                  <path
-                    d="M15 9L6 18M11 13L4 20M13 7L9 11"
-                    strokeLinecap="round"
-                    strokeWidth="1.75"
-                    className="text-cyan-400"
-                  />
-                </svg>
+                <Trophy className="w-3.5 h-3.5 fill-amber-400 text-amber-400 shrink-0" strokeWidth={2.25} />
                 <span>{weeklyPbCount}</span>
               </button>
 
