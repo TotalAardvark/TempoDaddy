@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   X,
   Plus,
@@ -74,6 +74,58 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
   const [customPb, setCustomPb] = useState(100);
   const [customSubdivision, setCustomSubdivision] = useState<Subdivision>('1/16');
   const [customIsTriplet, setCustomIsTriplet] = useState(false);
+
+  // Tap tempo handling
+  const customTapTimesRef = useRef<number[]>([]);
+  const editTapTimesRef = useRef<number[]>([]);
+
+  const handleCustomTap = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const now = performance.now();
+    const times = customTapTimesRef.current;
+    if (times.length > 0 && now - times[times.length - 1] > 2500) {
+      times.length = 0;
+    }
+    times.push(now);
+    if (times.length > 5) {
+      times.shift();
+    }
+    if (times.length >= 2) {
+      const intervals: number[] = [];
+      for (let i = 1; i < times.length; i++) {
+        intervals.push(times[i] - times[i - 1]);
+      }
+      const avgInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+      const calculatedBpm = Math.round(60000 / avgInterval);
+      const clampedBpm = Math.max(30, Math.min(300, calculatedBpm));
+      setCustomPb(clampedBpm);
+    }
+  };
+
+  const handleEditTap = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const now = performance.now();
+    const times = editTapTimesRef.current;
+    if (times.length > 0 && now - times[times.length - 1] > 2500) {
+      times.length = 0;
+    }
+    times.push(now);
+    if (times.length > 5) {
+      times.shift();
+    }
+    if (times.length >= 2) {
+      const intervals: number[] = [];
+      for (let i = 1; i < times.length; i++) {
+        intervals.push(times[i] - times[i - 1]);
+      }
+      const avgInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+      const calculatedBpm = Math.round(60000 / avgInterval);
+      const clampedBpm = Math.max(30, Math.min(300, calculatedBpm));
+      setEditPb(clampedBpm);
+    }
+  };
 
   useEffect(() => {
     if (!isOpen) return;
@@ -263,7 +315,7 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
                                 </label>
                                 <input
                                   type="text"
-                                  placeholder="e.g. R L R R   L R L L"
+                                  placeholder="e.g. R l r r L r ll (capital letters for accents)"
                                   value={editSticking}
                                   onChange={(e) => setEditSticking(e.target.value)}
                                   className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-amber-400"
@@ -289,14 +341,24 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
                                   <label className="text-[11px] text-neutral-400 block mb-1 truncate">
                                     Practice Tempo
                                   </label>
-                                  <input
-                                    type="number"
-                                    min="30"
-                                    max="300"
-                                    value={editPb}
-                                    onChange={(e) => setEditPb(parseInt(e.target.value) || 80)}
-                                    className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-2.5 py-2 text-xs text-white font-mono focus:outline-none focus:border-amber-400"
-                                  />
+                                  <div className="flex items-center gap-1.5">
+                                    <input
+                                      type="number"
+                                      min="30"
+                                      max="300"
+                                      value={editPb}
+                                      onChange={(e) => setEditPb(parseInt(e.target.value) || 80)}
+                                      className="w-full min-w-0 bg-neutral-900 border border-neutral-800 rounded-xl px-2.5 py-2 text-xs text-white font-mono focus:outline-none focus:border-amber-400"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={handleEditTap}
+                                      title="Tap tempo"
+                                      className="h-[34px] px-2.5 sm:px-3 bg-neutral-800 hover:bg-neutral-700 active:bg-amber-500 active:text-neutral-950 active:border-amber-400 border border-neutral-700/80 text-white font-semibold text-xs rounded-xl transition-all duration-75 flex items-center justify-center shrink-0 shadow-sm active:scale-95 select-none"
+                                    >
+                                      Tap
+                                    </button>
+                                  </div>
                                 </div>
 
                                 <div className="col-span-4">
@@ -529,7 +591,7 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
                                     </label>
                                     <input
                                       type="text"
-                                      placeholder="e.g. R L R R   L R L L"
+                                      placeholder="e.g. R l r r L r ll (capital letters for accents)"
                                       value={editSticking}
                                       onChange={(e) => setEditSticking(e.target.value)}
                                       className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-amber-400"
@@ -555,14 +617,24 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
                                       <label className="text-[11px] text-neutral-400 block mb-1 truncate">
                                         Practice Tempo
                                       </label>
-                                      <input
-                                        type="number"
-                                        min="30"
-                                        max="300"
-                                        value={editPb}
-                                        onChange={(e) => setEditPb(parseInt(e.target.value) || 80)}
-                                        className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-2.5 py-2 text-xs text-white font-mono focus:outline-none focus:border-amber-400"
-                                      />
+                                      <div className="flex items-center gap-1.5">
+                                        <input
+                                          type="number"
+                                          min="30"
+                                          max="300"
+                                          value={editPb}
+                                          onChange={(e) => setEditPb(parseInt(e.target.value) || 80)}
+                                          className="w-full min-w-0 bg-neutral-900 border border-neutral-800 rounded-xl px-2.5 py-2 text-xs text-white font-mono focus:outline-none focus:border-amber-400"
+                                        />
+                                        <button
+                                          type="button"
+                                          onClick={handleEditTap}
+                                          title="Tap tempo"
+                                          className="h-[34px] px-2.5 sm:px-3 bg-neutral-800 hover:bg-neutral-700 active:bg-amber-500 active:text-neutral-950 active:border-amber-400 border border-neutral-700/80 text-white font-semibold text-xs rounded-xl transition-all duration-75 flex items-center justify-center shrink-0 shadow-sm active:scale-95 select-none"
+                                        >
+                                          Tap
+                                        </button>
+                                      </div>
                                     </div>
 
                                     <div className="col-span-4">
@@ -781,7 +853,7 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
                     </label>
                     <input
                       type="text"
-                      placeholder="e.g. R L R R   L R L L"
+                      placeholder="e.g. R l r r L r ll (capital letters for accents)"
                       value={customSticking}
                       onChange={(e) => setCustomSticking(e.target.value)}
                       className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-amber-400"
@@ -807,14 +879,24 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
                       <label className="text-[11px] text-neutral-400 block mb-1 truncate">
                         Practice Tempo
                       </label>
-                      <input
-                        type="number"
-                        min="30"
-                        max="300"
-                        value={customPb}
-                        onChange={(e) => setCustomPb(parseInt(e.target.value) || 80)}
-                        className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-2.5 py-2 text-xs text-white font-mono focus:outline-none focus:border-amber-400"
-                      />
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="number"
+                          min="30"
+                          max="300"
+                          value={customPb}
+                          onChange={(e) => setCustomPb(parseInt(e.target.value) || 80)}
+                          className="w-full min-w-0 bg-neutral-900 border border-neutral-800 rounded-xl px-2.5 py-2 text-xs text-white font-mono focus:outline-none focus:border-amber-400"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleCustomTap}
+                          title="Tap tempo"
+                          className="h-[34px] px-2.5 sm:px-3 bg-neutral-800 hover:bg-neutral-700 active:bg-amber-500 active:text-neutral-950 active:border-amber-400 border border-neutral-700/80 text-white font-semibold text-xs rounded-xl transition-all duration-75 flex items-center justify-center shrink-0 shadow-sm active:scale-95 select-none"
+                        >
+                          Tap
+                        </button>
+                      </div>
                     </div>
 
                     <div className="col-span-4">
