@@ -56,7 +56,10 @@ export const RoutineCompleteScreen: React.FC<RoutineCompleteScreenProps> = ({
   const hibernatedSkills = skills.filter((s) => s.isHibernated);
 
   return (
-    <div className="min-h-[100dvh] w-full flex flex-col justify-between items-center px-6 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] bg-gradient-to-b from-neutral-950 via-neutral-900 to-black text-white">
+    <div
+      style={{ paddingTop: 'var(--app-header-padding-top)' }}
+      className="min-h-[100dvh] w-full flex flex-col justify-between items-center px-6 pb-[max(1rem,env(safe-area-inset-bottom))] bg-gradient-to-b from-neutral-950 via-neutral-900 to-black text-white"
+    >
       {/* Top Bar */}
       <div className="w-full max-w-md flex items-center justify-between">
         <span className="text-xs font-semibold tracking-wider uppercase text-neutral-400">

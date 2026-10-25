@@ -1,5 +1,19 @@
 @import "tailwindcss";
 
+:root {
+  --app-header-padding-top: max(0.75rem, env(safe-area-inset-top, 0px));
+}
+
+@media all and (display-mode: standalone) {
+  :root {
+    --app-header-padding-top: calc(env(safe-area-inset-top, 0px) + 2rem);
+  }
+}
+
+html.is-pwa {
+  --app-header-padding-top: calc(env(safe-area-inset-top, 0px) + 2rem);
+}
+
 @layer base {
   body {
     background-color: #0a0a0a;

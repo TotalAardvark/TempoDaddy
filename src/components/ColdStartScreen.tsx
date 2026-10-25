@@ -73,7 +73,8 @@ export const ColdStartScreen: React.FC<ColdStartScreenProps> = ({
   return (
     <div
       onClick={onStart}
-      className="h-[100dvh] max-h-[100dvh] overflow-hidden w-full flex flex-col justify-between items-center px-6 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-gradient-to-b from-neutral-950 via-neutral-900 to-black text-white cursor-pointer select-none transition-colors"
+      style={{ paddingTop: 'var(--app-header-padding-top)' }}
+      className="h-[100dvh] max-h-[100dvh] overflow-hidden w-full flex flex-col justify-between items-center px-6 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-gradient-to-b from-neutral-950 via-neutral-900 to-black text-white cursor-pointer select-none transition-colors"
     >
       {/* Top Header Navigation: matches practice screen styling */}
       <div className="w-full max-w-md flex items-center justify-between">
