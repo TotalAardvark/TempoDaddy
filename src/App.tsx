@@ -805,8 +805,8 @@ export default function App() {
         </div>
       </header>
 
-      {/* Upper Info Section: Title, Sticking & Progress Card (Vertically Centered) */}
-      <div className="flex-1 flex flex-col items-center justify-center min-h-0 w-full max-w-md py-1">
+      {/* Upper Info Section: Title, Sticking & Progress Card */}
+      <div className="shrink-0 flex flex-col items-center justify-start w-full max-w-md pt-[50px]">
         <div className="w-full text-center mb-1">
           <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-white mb-1.5 sm:mb-2">
             {currentSkill?.title}
@@ -824,7 +824,7 @@ export default function App() {
         </div>
 
         {/* Hero Personal Best Target & Progress Graph */}
-        <div className="w-full flex justify-center mt-3.5 sm:mt-5">
+        <div className="w-full flex justify-center mt-3 sm:mt-4">
           {currentSkill && (
             <ProgressSparkline
               personalBestBpm={currentSkill.personalBestBpm}
@@ -838,7 +838,7 @@ export default function App() {
       </div>
 
       {/* Circular Dial Metronome with swipe & Tempo Ramp button */}
-      <div className="flex flex-col items-center shrink-0 mt-1 sm:mt-0">
+      <div className="flex-1 flex flex-col items-center justify-center shrink-0 min-h-0 -my-1">
         <CircularDial
           bpm={bpm}
           minBpm={40}
@@ -861,15 +861,15 @@ export default function App() {
       </div>
 
       {/* Lower Section: Adaptive, Inobtrusive Rehearsal Notes Field */}
-      <div className="shrink-0 flex flex-col items-center justify-center w-full max-w-md pt-3 sm:pt-4 pb-0.5">
+      <div className="shrink-0 flex flex-col items-center justify-center w-full max-w-md pt-2 sm:pt-3 pb-0.5">
         <SkillNotesDialog
           notes={currentSkill?.notes}
           onSaveNotes={handleUpdateNotes}
         />
       </div>
 
-      {/* Done Button: Shifted down close to the footer controls */}
-      <div className="shrink-0 w-full flex flex-col items-center justify-center pt-2.5 pb-1 sm:pb-2">
+      {/* Done Button */}
+      <div className="shrink-0 w-full flex flex-col items-center justify-center pt-2 pb-2 sm:pb-3">
         <button
           type="button"
           onClick={handleDoneClick}
