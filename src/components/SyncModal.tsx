@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Cloud, CloudLightning, RefreshCw, Check, Copy, ArrowRight, AlertCircle, X } from 'lucide-react';
+import { Cloud, CloudLightning, RefreshCw, Check, Copy, ArrowRight, AlertCircle, X, PlusCircle } from 'lucide-react';
 import {
   getStoredProfileId,
   createCloudProfile,
+  createEmptyCloudProfile,
   loadCloudProfile,
   syncLocalToCloud,
   setStoredProfileId,
@@ -17,6 +18,7 @@ interface SyncModalProps {
 export const SyncModal: React.FC<SyncModalProps> = ({ isOpen, onClose, onDataChanged }) => {
   const [profileId, setProfileId] = useState<string | null>(() => getStoredProfileId());
   const [isCreating, setIsCreating] = useState(false);
+  const [isCreatingEmpty, setIsCreatingEmpty] = useState(false);
   const [isLoadingExisting, setIsLoadingExisting] = useState(false);
   const [isManualSyncing, setIsManualSyncing] = useState(false);
   const [inputCode, setInputCode] = useState('');
@@ -83,13 +85,36 @@ export const SyncModal: React.FC<SyncModalProps> = ({ isOpen, onClose, onDataCha
 
       if (result.success && result.profileId) {
         setProfileId(result.profileId);
-        setSuccessMessage(`New profile created! Linked as "${result.profileId}".`);
+        setSuccessMessage(`Profile created! Linked as "${result.profileId}".`);
         onDataChanged();
       } else {
         setErrorMessage(result.error || 'Failed to create cloud profile.');
       }
     } catch (err) {
       setIsCreating(false);
+      const msg = err instanceof Error ? err.message : 'Failed to connect to Firebase.';
+      setErrorMessage(msg);
+    }
+  };
+
+  const handleCreateEmptyProfile = async () => {
+    setIsCreatingEmpty(true);
+    setErrorMessage(null);
+    setSuccessMessage(null);
+
+    try {
+      const result = await createEmptyCloudProfile();
+      setIsCreatingEmpty(false);
+
+      if (result.success && result.profileId) {
+        setProfileId(result.profileId);
+        setSuccessMessage(`New empty profile created! Linked as "${result.profileId}".`);
+        onDataChanged();
+      } else {
+        setErrorMessage(result.error || 'Failed to create empty profile.');
+      }
+    } catch (err) {
+      setIsCreatingEmpty(false);
       const msg = err instanceof Error ? err.message : 'Failed to connect to Firebase.';
       setErrorMessage(msg);
     }
@@ -278,7 +303,7 @@ export const SyncModal: React.FC<SyncModalProps> = ({ isOpen, onClose, onDataCha
             )}
           </div>
 
-          {/* Field 2: Create New Profile */}
+          {/* Field 2: Save Profile With Current Workout */}
           <div className="pt-2">
             <button
               type="button"
@@ -289,76 +314,102 @@ export const SyncModal: React.FC<SyncModalProps> = ({ isOpen, onClose, onDataCha
               {isCreating ? (
                 <>
                   <RefreshCw className="w-4 h-4 animate-spin" />
-                  <span>Generating Code & Syncing...</span>
+                  <span>Saving Profile & Syncing...</span>
                 </>
               ) : (
                 <>
                   <Cloud className="w-4 h-4" />
-                  <span>{isLinked ? 'Generate New Profile ID' : 'Create New Profile'}</span>
+                  <span>Save Profile With Current Workout</span>
                 </>
               )}
             </button>
             <p className="text-[11px] text-neutral-500 text-center mt-1.5">
-              Generates a simple 2-word code and pushes your local skills & history to the cloud.
+              Creates a unique profile and saves your skills & progress.
             </p>
           </div>
 
           <div className="relative flex py-1 items-center">
             <div className="flex-grow border-t border-neutral-800"></div>
-            <span className="flex-shrink mx-3 text-neutral-600 text-[11px] font-medium uppercase tracking-wider">or</span>
+            <span className="flex-shrink mx-3 text-neutral-600 text-[11px] font-medium uppercase tracking-wider">-OR-</span>
             <div className="flex-grow border-t border-neutral-800"></div>
           </div>
 
-          {/* Field 3: Load Existing Profile */}
-          <div>
-            {!showLoadInput ? (
+          {/* Field 3: Create New Empty Profile & Load Existing Profile */}
+          <div className="space-y-4">
+            <div>
               <button
                 type="button"
-                onClick={() => setShowLoadInput(true)}
-                className="w-full py-3 px-4 rounded-2xl bg-neutral-800 hover:bg-neutral-750 text-neutral-200 font-bold text-xs flex items-center justify-center gap-2 border border-neutral-700/60 transition active:scale-[0.98]"
+                onClick={handleCreateEmptyProfile}
+                disabled={isCreatingEmpty}
+                className="w-full py-3 px-4 rounded-2xl bg-neutral-800 hover:bg-neutral-750 text-neutral-200 font-bold text-xs flex items-center justify-center gap-2 border border-neutral-700/60 transition active:scale-[0.98] disabled:opacity-50"
               >
-                <span>Load Existing Profile</span>
-                <ArrowRight className="w-3.5 h-3.5 text-neutral-400" />
+                {isCreatingEmpty ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Creating New Profile...</span>
+                  </>
+                ) : (
+                  <>
+                    <PlusCircle className="w-3.5 h-3.5 text-neutral-400" />
+                    <span>Create New Empty Profile</span>
+                  </>
+                )}
               </button>
-            ) : (
-              <form onSubmit={handleLoadProfileSubmit} className="space-y-2 bg-neutral-950/70 p-3 rounded-2xl border border-neutral-800">
-                <label className="text-[11px] font-semibold text-neutral-400 block">
-                  Enter 2-Word Profile Code:
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    ref={inputRef}
-                    type="text"
-                    value={inputCode}
-                    onChange={(e) => setInputCode(e.target.value.toLowerCase())}
-                    placeholder="e.g. funky-badger"
-                    autoCapitalize="none"
-                    autoCorrect="off"
-                    className="flex-1 bg-neutral-900 border border-neutral-750 rounded-xl px-3 py-2 text-xs text-white placeholder-neutral-600 focus:outline-none focus:border-amber-500 font-mono"
-                  />
-                  <button
-                    type="submit"
-                    disabled={isLoadingExisting || !inputCode.trim()}
-                    className="px-4 py-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-neutral-950 rounded-xl font-bold text-xs transition flex items-center gap-1.5"
-                  >
-                    {isLoadingExisting ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : 'Load'}
-                  </button>
-                </div>
-                <div className="flex justify-between items-center text-[10px] text-neutral-500 pt-0.5">
-                  <span>Enter the code from your other device</span>
-                  <button
-                    type="button"
-                    onClick={() => setShowLoadInput(false)}
-                    className="text-neutral-400 hover:text-white underline"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            )}
-            <p className="text-[11px] text-neutral-500 text-center mt-1.5">
-              Connect this device to a profile created on another phone or computer.
-            </p>
+              <p className="text-[11px] text-neutral-500 text-center mt-1.5">
+                Create a new profile to use on this or other devices.
+              </p>
+            </div>
+
+            <div>
+              {!showLoadInput ? (
+                <button
+                  type="button"
+                  onClick={() => setShowLoadInput(true)}
+                  className="w-full py-3 px-4 rounded-2xl bg-neutral-800 hover:bg-neutral-750 text-neutral-200 font-bold text-xs flex items-center justify-center gap-2 border border-neutral-700/60 transition active:scale-[0.98]"
+                >
+                  <span>Load Existing Profile</span>
+                  <ArrowRight className="w-3.5 h-3.5 text-neutral-400" />
+                </button>
+              ) : (
+                <form onSubmit={handleLoadProfileSubmit} className="space-y-2 bg-neutral-950/70 p-3 rounded-2xl border border-neutral-800">
+                  <label className="text-[11px] font-semibold text-neutral-400 block">
+                    Enter 2-Word Profile Code:
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      ref={inputRef}
+                      type="text"
+                      value={inputCode}
+                      onChange={(e) => setInputCode(e.target.value.toLowerCase())}
+                      placeholder="e.g. funky-badger"
+                      autoCapitalize="none"
+                      autoCorrect="off"
+                      className="flex-1 bg-neutral-900 border border-neutral-750 rounded-xl px-3 py-2 text-xs text-white placeholder-neutral-600 focus:outline-none focus:border-amber-500 font-mono"
+                    />
+                    <button
+                      type="submit"
+                      disabled={isLoadingExisting || !inputCode.trim()}
+                      className="px-4 py-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-neutral-950 rounded-xl font-bold text-xs transition flex items-center gap-1.5"
+                    >
+                      {isLoadingExisting ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : 'Load'}
+                    </button>
+                  </div>
+                  <div className="flex justify-between items-center text-[10px] text-neutral-500 pt-0.5">
+                    <span>Enter the code from your other device</span>
+                    <button
+                      type="button"
+                      onClick={() => setShowLoadInput(false)}
+                      className="text-neutral-400 hover:text-white underline"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              )}
+              <p className="text-[11px] text-neutral-500 text-center mt-1.5">
+                Connect this device to a profile created on another phone or computer.
+              </p>
+            </div>
           </div>
         </div>
 

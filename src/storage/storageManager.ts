@@ -59,6 +59,14 @@ export const storageManager = {
     }
   },
 
+  saveSessions(sessions: PracticeSessionLog[]) {
+    try {
+      localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions));
+    } catch (e) {
+      console.error('Error saving sessions to localStorage', e);
+    }
+  },
+
   getSessions(): PracticeSessionLog[] {
     try {
       const stored = localStorage.getItem(SESSIONS_KEY);

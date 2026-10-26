@@ -131,6 +131,59 @@ export async function createCloudProfile(): Promise<{ success: boolean; profileI
 }
 
 /**
+ * Creates a brand new empty cloud profile (no skills in queue, fresh state)
+ * and links this device to it.
+ */
+export async function createEmptyCloudProfile(): Promise<{ success: boolean; profileId?: string; error?: string }> {
+  try {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      return { success: false, error: 'You are offline. Connect to the internet to create a profile.' };
+    }
+
+    const db = getDb();
+    let uniqueCode = '';
+    let attempts = 0;
+
+    // Find an unused 2-word code
+    while (attempts < 5) {
+      const candidate = generateWordCode();
+      const docRef = doc(db, 'profiles', candidate);
+      const snap = await getDoc(docRef);
+      if (!snap.exists()) {
+        uniqueCode = candidate;
+        break;
+      }
+      attempts++;
+    }
+
+    if (!uniqueCode) {
+      return { success: false, error: 'Could not generate a unique code. Please try again.' };
+    }
+
+    const now = new Date().toISOString();
+    const data: CloudProfileData = {
+      skills: [],
+      sessions: [],
+      tempoRampSettings: storageManager.getTempoRampSettings(),
+      timbre: storageManager.getMetronomeTimbre(),
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    await setDoc(doc(db, 'profiles', uniqueCode), data);
+    storageManager.saveSkills([]);
+    storageManager.saveSessions([]);
+    setStoredProfileId(uniqueCode);
+    setLastSyncedAt(now);
+
+    return { success: true, profileId: uniqueCode };
+  } catch (err: unknown) {
+    console.error('Error creating empty cloud profile:', err);
+    return { success: false, error: getFriendlyErrorMessage(err, 'Failed to create empty profile.') };
+  }
+}
+
+/**
  * Loads an existing cloud profile by its 2-word code and overrides/updates local data.
  */
 export async function loadCloudProfile(code: string): Promise<{ success: boolean; profileId?: string; error?: string }> {

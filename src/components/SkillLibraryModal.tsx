@@ -976,7 +976,7 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
               title="Cloud Sync"
             >
               <Cloud className="w-3.5 h-3.5" />
-              <span>Sync</span>
+              <span>Profile & Sync</span>
             </button>
           </div>
         </div>
