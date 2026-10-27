@@ -24,7 +24,6 @@ export const ConfirmSessionModal: React.FC<ConfirmSessionModalProps> = ({
 }) => {
   const [loggedBpm, setLoggedBpm] = useState(initialBpm);
   const lastModalBpmKeyRef = useRef<{ key: string; time: number }>({ key: '', time: 0 });
-  const lastSpaceTapRef = useRef<number>(0);
 
   useEffect(() => {
     if (isOpen) {
@@ -39,25 +38,14 @@ export const ConfirmSessionModal: React.FC<ConfirmSessionModalProps> = ({
     }
   }, [isOpen, initialBpm, personalBestBpm]);
 
-  // Handle Enter, Space (double-tap to confirm), Escape, and +/- keys on the confirmation modal
+  // Handle Enter/Space (single-tap to confirm), Escape to cancel, and +/- keys
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Enter') {
+      if (e.key === 'Enter' || e.code === 'Space') {
         e.preventDefault();
         e.stopPropagation();
         onConfirm(loggedBpm);
-      } else if (e.code === 'Space') {
-        e.preventDefault();
-        e.stopPropagation();
-        const now = Date.now();
-        // Double-tap spacebar within 500ms confirms and logs practice
-        if (now - lastSpaceTapRef.current < 500) {
-          lastSpaceTapRef.current = 0;
-          onConfirm(loggedBpm);
-        } else {
-          lastSpaceTapRef.current = now;
-        }
       } else if (e.key === 'Escape') {
         e.preventDefault();
         e.stopPropagation();
@@ -157,7 +145,7 @@ export const ConfirmSessionModal: React.FC<ConfirmSessionModalProps> = ({
         </button>
 
         <span className="text-[10px] text-neutral-500 mt-2 font-mono">
-          Press Enter ↵ or Space twice to confirm • +/- to adjust
+          Press Enter ↵ or Space to confirm • Esc to return • +/- to adjust
         </span>
       </div>
     </div>

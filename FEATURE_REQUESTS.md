@@ -50,11 +50,13 @@ Tracking file for feature requests, ideas, and backlog tasks.
 - **Status**: Completed
 - **Description**: Update the "New Personal Best" congratulatory text in the popup modal to render in cyan with matching glow styling.
 
-#### [FR-004] Double-Tap Spacebar to Log
+#### [FR-004] Double-Tap Spacebar to Log Practice
 - **Priority**: P0 (Low)
 - **Complexity**: C0 (Low)
 - **Status**: Completed
-- **Description**: Allow double-tapping the spacebar to confirm/log a completed set in the session modal so the entire practice flow can be operated hands-on via spacebar and keys.
+- **Description**: 
+  - **In Practice Screen**: Single tap Space waits 250ms (standard responsive double-tap delay window); if no second tap occurs, metronome toggles play/pause. Double tap Space within 250ms immediately triggers "Done (Log Performance)" and opens the confirmation modal.
+  - **In Confirmation Dialog**: Single tap Space or Enter confirms and logs session; Esc cancels and returns to exercise; `+/-` adjusts final BPM.
 
 #### [FR-013] Phone / PWA / Native iOS Workout Summary Graphs & PB Celebrations
 - **Priority**: P1 (Medium-Low)

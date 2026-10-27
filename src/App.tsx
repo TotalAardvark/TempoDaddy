@@ -372,8 +372,22 @@ export default function App() {
     setIsConfirmModalOpen(true);
   };
 
-  // Keyboard controls on practice screen (Space: play/pause, Enter: Done, +/-: BPM with rapid-3 logic)
+  // Keyboard controls on practice screen:
+  // Space: single-tap (waits 250ms) -> pause/resume; double-tap (<250ms) -> Done (Log Performance)
+  // Enter: Done (Log Performance)
+  // +/- or arrows: BPM adjustment with rapid-3 logic
   const lastBpmKeyRef = useRef<{ key: string; time: number }>({ key: '', time: 0 });
+  const spaceDelayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clear pending space delay timer on unmount or screen state changes
+  useEffect(() => {
+    return () => {
+      if (spaceDelayTimerRef.current) {
+        clearTimeout(spaceDelayTimerRef.current);
+        spaceDelayTimerRef.current = null;
+      }
+    };
+  }, [isColdStart, isRoutineFinished, isLibraryOpen, isConfirmModalOpen, isExitModalOpen]);
 
   useEffect(() => {
     if (isColdStart || isRoutineFinished || isLibraryOpen || isConfirmModalOpen || isExitModalOpen) return;
@@ -389,9 +403,24 @@ export default function App() {
 
       if (e.code === 'Space') {
         e.preventDefault();
-        handleTogglePlay();
+        if (spaceDelayTimerRef.current) {
+          // Double-tap Space detected within 250ms -> Trigger Done / Log Performance
+          clearTimeout(spaceDelayTimerRef.current);
+          spaceDelayTimerRef.current = null;
+          handleDoneClick();
+        } else {
+          // First tap -> Wait 250ms standard delay to confirm if it's a single or double tap
+          spaceDelayTimerRef.current = setTimeout(() => {
+            spaceDelayTimerRef.current = null;
+            handleTogglePlay();
+          }, 250);
+        }
       } else if (e.key === 'Enter') {
         e.preventDefault();
+        if (spaceDelayTimerRef.current) {
+          clearTimeout(spaceDelayTimerRef.current);
+          spaceDelayTimerRef.current = null;
+        }
         handleDoneClick();
       } else if (e.key === '+' || e.key === '=' || e.key === 'ArrowRight') {
         e.preventDefault();
