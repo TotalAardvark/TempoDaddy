@@ -28,7 +28,7 @@ Tracking file for feature requests, ideas, and backlog tasks.
 | FR-006 | Workout export / import / sharing & browser | P0 | C3 | Open |
 | FR-007 | Expanded built-in skills library with folder structure | P0 | C1 | Open |
 | FR-008 | Expanded skill functionality (embedded media: image, MIDI, tab, audio, YT) | P0 | C2 | Open |
-| FR-013 | Ensure cyan progress graphs display in PWA mode on workout summary | P1 | C1 | Open |
+| FR-013 | Ensure cyan progress graphs display in phone/PWA/iOS mode on workout summary | P1 | C1 | Completed |
 | FR-011 | Import/export skills or workouts via QR code | P2 | C1 | Open |
 | FR-009 | Onboarding experience design for new users | P3 | C2 | Open |
 | FR-010 | Text size accessibility (Large Text mode in settings) | P3 | C1 | Open |
@@ -55,6 +55,15 @@ Tracking file for feature requests, ideas, and backlog tasks.
 - **Complexity**: C0 (Low)
 - **Status**: Completed
 - **Description**: Allow double-tapping the spacebar to confirm/log a completed set in the session modal so the entire practice flow can be operated hands-on via spacebar and keys.
+
+#### [FR-013] Phone / PWA / Native iOS Workout Summary Graphs & PB Celebrations
+- **Priority**: P1 (Medium-Low)
+- **Complexity**: C1 (Medium-Low)
+- **Status**: Completed
+- **Description**:
+  - Ensured cyan progress graphs render cleanly across mobile views (PWA standalone, phone viewports, and native iOS wrappers).
+  - Replaced static queue text with a dynamic summary of newly smashed personal bests from that session.
+  - Replaced "Daily Routine Complete" with a cyan lifetime PB trophy badge showing animated count-up (`previous total` -> `current total`) and `+x` pill.
 
 ---
 
@@ -101,12 +110,7 @@ Tracking file for feature requests, ideas, and backlog tasks.
 ---
 
 ### Priority: P1 (Medium-Low)
-
-#### [FR-013] Show Cyan Progress Graphs in PWA Mode on Workout Summary
-- **Priority**: P1 (Medium-Low)
-- **Complexity**: C1 (Medium-Low)
-- **Status**: Open
-- **Description**: The workout summary page currently does not render the cyan progress graphs when running in PWA mode due to adaptive scaling constraints. Ensure these graphs remain visible and correctly scaled in PWA mode to maintain user motivation.
+*(No items currently)*
 
 ---
 
@@ -136,7 +140,7 @@ Tracking file for feature requests, ideas, and backlog tasks.
   - Format/structure: Wizard vs. guided flow vs. short video.
     - *Note/Preference*: Strong preference against greyed-out screen tooltip tours. Current leaning is toward a concise, easily skippable short video/explainer that can be re-accessed anytime via Settings.
 
-#### [FR-010] Text Size Accessibility / Large Text Mode
+#### [FR-010] Text size Accessibility / Large Text Mode
 - **Priority**: P3 (High)
 - **Complexity**: C1 (Medium-Low)
 - **Status**: Open

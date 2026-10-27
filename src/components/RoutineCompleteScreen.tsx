@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { Trophy, Flame, CheckCircle, ListMusic, Trash2, Sun, ChevronDown, ChevronRight, Sparkles, RotateCcw } from 'lucide-react';
 import type { Skill, PracticeSessionLog } from '../types';
 import { storageManager } from '../storage/storageManager';
 import { TealProgressGraph } from './TealProgressGraph';
 import { StickingDisplay } from './StickingDisplay';
+import { PersonalBestsTooltip } from './PersonalBestsTooltip';
 import confetti from 'canvas-confetti';
 
 interface RoutineCompleteScreenProps {
@@ -11,6 +12,14 @@ interface RoutineCompleteScreenProps {
   todaySessions: PracticeSessionLog[];
   completedSkillIds?: Set<string>;
   streak: number;
+  pbStats?: {
+    thisWeek: number;
+    thisMonth: number;
+    allTime: number;
+    sinceReset: number;
+    resetDate: string | null;
+  };
+  onResetPbCounter?: () => void;
   onRestartRoutine?: () => void;
   onReturnToStart?: () => void;
   onReturnToTitle: () => void;
@@ -24,6 +33,8 @@ export const RoutineCompleteScreen: React.FC<RoutineCompleteScreenProps> = ({
   todaySessions,
   completedSkillIds,
   streak,
+  pbStats,
+  onResetPbCounter,
   onReturnToStart,
   onReturnToTitle,
   onOpenLibrary,
@@ -31,6 +42,70 @@ export const RoutineCompleteScreen: React.FC<RoutineCompleteScreenProps> = ({
   onDeleteSkill,
 }) => {
   const [showHibernated, setShowHibernated] = useState(false);
+  const [isPbTooltipOpen, setIsPbTooltipOpen] = useState(false);
+
+  // Calculate active skills and newly achieved PBs in this session
+  const activeSkills = useMemo(() => skills.filter((s) => !s.isHibernated), [skills]);
+  const hibernatedSkills = useMemo(() => skills.filter((s) => s.isHibernated), [skills]);
+
+  // Compute session metrics: number of new PBs achieved during this session
+  const sessionPbCount = useMemo(() => {
+    let count = 0;
+    activeSkills.forEach((skill) => {
+      const isCompleted = completedSkillIds ? completedSkillIds.has(skill.id) : true;
+      if (!isCompleted) return;
+      const history = storageManager.getSkillHistory(skill.id);
+      const mostRecent = [...todaySessions].reverse().find((s) => s.skillId === skill.id) ||
+        (history.length > 0 ? history[history.length - 1] : null);
+      if (mostRecent) {
+        const latestBpm = mostRecent.bpm;
+        if (mostRecent.isPersonalBest || latestBpm >= skill.personalBestBpm) {
+          count++;
+        }
+      }
+    });
+    return count;
+  }, [activeSkills, completedSkillIds, todaySessions]);
+
+  // Total Lifetime PB count
+  const totalPbCount = pbStats?.allTime ?? storageManager.getPbStats().allTime;
+  const prevTotalPbCount = Math.max(0, totalPbCount - sessionPbCount);
+
+  // Script-based animated counter from previous total to current total
+  const [animatedPbCount, setAnimatedPbCount] = useState<number>(prevTotalPbCount);
+  const animFrameRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (sessionPbCount <= 0) {
+      setAnimatedPbCount(totalPbCount);
+      return;
+    }
+
+    const duration = 1200; // ms
+    const startTime = performance.now();
+    const startVal = prevTotalPbCount;
+    const endVal = totalPbCount;
+
+    const tick = (now: number) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(1, elapsed / duration);
+      // ease-out cubic
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const current = Math.round(startVal + (endVal - startVal) * eased);
+      setAnimatedPbCount(current);
+
+      if (progress < 1) {
+        animFrameRef.current = requestAnimationFrame(tick);
+      }
+    };
+
+    animFrameRef.current = requestAnimationFrame(tick);
+    return () => {
+      if (animFrameRef.current !== null) {
+        cancelAnimationFrame(animFrameRef.current);
+      }
+    };
+  }, [prevTotalPbCount, totalPbCount, sessionPbCount]);
 
   useEffect(() => {
     confetti({
@@ -44,27 +119,51 @@ export const RoutineCompleteScreen: React.FC<RoutineCompleteScreenProps> = ({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        if (isPbTooltipOpen) {
+          setIsPbTooltipOpen(false);
+          return;
+        }
         e.preventDefault();
         onReturnToTitle();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onReturnToTitle]);
-
-  const activeSkills = skills.filter((s) => !s.isHibernated);
-  const hibernatedSkills = skills.filter((s) => s.isHibernated);
+  }, [onReturnToTitle, isPbTooltipOpen]);
 
   return (
     <div
       style={{ paddingTop: 'var(--app-header-padding-top)' }}
-      className="min-h-[100dvh] w-full flex flex-col justify-between items-center px-6 pb-[max(1rem,env(safe-area-inset-bottom))] bg-gradient-to-b from-neutral-950 via-neutral-900 to-black text-white"
+      className="min-h-[100dvh] w-full flex flex-col justify-between items-center px-4 sm:px-6 pb-[max(1rem,env(safe-area-inset-bottom))] bg-gradient-to-b from-neutral-950 via-neutral-900 to-black text-white"
     >
       {/* Top Bar */}
       <div className="w-full max-w-md flex items-center justify-between">
-        <span className="text-xs font-semibold tracking-wider uppercase text-neutral-400">
-          DAILY ROUTINE COMPLETE
-        </span>
+        {/* Cyan Trophy Badge for Lifetime PBs with +X animation */}
+        <div className="relative" onClick={(e) => e.stopPropagation()}>
+          <button
+            type="button"
+            onClick={() => setIsPbTooltipOpen((prev) => !prev)}
+            className="flex items-center gap-1.5 px-3 py-1 bg-cyan-500/10 hover:bg-cyan-500/20 active:bg-cyan-500/30 border border-cyan-500/30 hover:border-cyan-500/50 rounded-full text-cyan-300 text-xs font-bold shadow-sm shadow-cyan-500/15 transition cursor-pointer"
+            title="Personal Bests stats (click to expand)"
+          >
+            <Trophy className="w-3.5 h-3.5 fill-cyan-400 text-cyan-400 shrink-0" strokeWidth={2.25} />
+            <span className="font-mono text-sm tracking-tight">{animatedPbCount}</span>
+            {sessionPbCount > 0 && (
+              <span className="text-[11px] font-mono font-black text-cyan-200 bg-cyan-500/20 px-1.5 py-0.2 rounded-full border border-cyan-400/40 animate-pulse">
+                +{sessionPbCount}
+              </span>
+            )}
+          </button>
+
+          <PersonalBestsTooltip
+            isOpen={isPbTooltipOpen}
+            onClose={() => setIsPbTooltipOpen(false)}
+            stats={pbStats}
+            onResetCounter={onResetPbCounter || (() => {})}
+          />
+        </div>
+
+        {/* Flame Streak Badge */}
         <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-500/10 border border-amber-500/30 rounded-full text-amber-400 text-xs font-bold">
           <Flame className="w-3.5 h-3.5 fill-amber-400" />
           <span>{streak} Day Streak!</span>
@@ -78,9 +177,19 @@ export const RoutineCompleteScreen: React.FC<RoutineCompleteScreenProps> = ({
         </div>
 
         <h2 className="text-3xl font-extrabold text-white mb-2">Great Session!</h2>
-        <p className="text-sm text-neutral-400 mb-6">
-          You worked through all active skills in your queue.
-        </p>
+        
+        {/* Dynamic Summary of Personal Bests Achieved in this session */}
+        <div className="mb-6 max-w-xs">
+          {sessionPbCount > 0 ? (
+            <p className="text-sm text-cyan-300 font-medium">
+              You smashed <span className="font-bold text-white underline decoration-cyan-400 decoration-2">{sessionPbCount}</span> new {sessionPbCount === 1 ? 'personal best' : 'personal bests'} today!
+            </p>
+          ) : (
+            <p className="text-sm text-neutral-400">
+              Completed all exercises in today's routine. Consistent reps build mastery!
+            </p>
+          )}
+        </div>
 
         {/* Practiced Skills List with Teal Progress Graphs */}
         <div className="w-full space-y-3 mb-8">
@@ -205,8 +314,8 @@ export const RoutineCompleteScreen: React.FC<RoutineCompleteScreenProps> = ({
                       currentBpm={latestBpm}
                       skillTitle={skill.title}
                       sticking={skill.sticking}
-                      width={130}
-                      height={30}
+                      width={120}
+                      height={28}
                       showLabels={true}
                     />
                   )}

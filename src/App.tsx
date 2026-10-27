@@ -685,6 +685,8 @@ export default function App() {
           todaySessions={todaySessions}
           completedSkillIds={completedSkillIds}
           streak={streak}
+          pbStats={pbStats}
+          onResetPbCounter={handleResetPbCounter}
           onRestartRoutine={handleRestartRoutine}
           onReturnToStart={() => {
             setIsRoutineFinished(false);
