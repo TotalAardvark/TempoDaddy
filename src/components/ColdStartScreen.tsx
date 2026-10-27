@@ -62,6 +62,10 @@ export const ColdStartScreen: React.FC<ColdStartScreenProps> = ({
       if (['Shift', 'Control', 'Alt', 'Meta', 'CapsLock'].includes(e.key)) {
         return;
       }
+      // Allow browser shortcuts like Cmd+R or Ctrl+R (refresh), Cmd+W, etc. to behave natively
+      if (e.metaKey || e.ctrlKey) {
+        return;
+      }
       e.preventDefault();
       onStart();
     };

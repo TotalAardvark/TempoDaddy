@@ -24,6 +24,7 @@ export const ConfirmSessionModal: React.FC<ConfirmSessionModalProps> = ({
 }) => {
   const [loggedBpm, setLoggedBpm] = useState(initialBpm);
   const lastModalBpmKeyRef = useRef<{ key: string; time: number }>({ key: '', time: 0 });
+  const lastSpaceTapRef = useRef<number>(0);
 
   useEffect(() => {
     if (isOpen) {
@@ -38,7 +39,7 @@ export const ConfirmSessionModal: React.FC<ConfirmSessionModalProps> = ({
     }
   }, [isOpen, initialBpm, personalBestBpm]);
 
-  // Handle Enter, Escape, and +/- keys on the confirmation modal
+  // Handle Enter, Space (double-tap to confirm), Escape, and +/- keys on the confirmation modal
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -46,6 +47,17 @@ export const ConfirmSessionModal: React.FC<ConfirmSessionModalProps> = ({
         e.preventDefault();
         e.stopPropagation();
         onConfirm(loggedBpm);
+      } else if (e.code === 'Space') {
+        e.preventDefault();
+        e.stopPropagation();
+        const now = Date.now();
+        // Double-tap spacebar within 500ms confirms and logs practice
+        if (now - lastSpaceTapRef.current < 500) {
+          lastSpaceTapRef.current = 0;
+          onConfirm(loggedBpm);
+        } else {
+          lastSpaceTapRef.current = now;
+        }
       } else if (e.key === 'Escape') {
         e.preventDefault();
         e.stopPropagation();
@@ -96,8 +108,8 @@ export const ConfirmSessionModal: React.FC<ConfirmSessionModalProps> = ({
 
         {/* New PB Callout */}
         {isNewPb && (
-          <div className="mb-4 inline-flex items-center gap-1.5 px-3 py-1 bg-amber-500/20 border border-amber-500/40 rounded-full text-amber-300 text-xs font-bold animate-bounce">
-            <Trophy className="w-3.5 h-3.5" />
+          <div className="mb-4 inline-flex items-center gap-1.5 px-3 py-1 bg-cyan-500/20 border border-cyan-500/40 rounded-full text-cyan-300 text-xs font-bold animate-bounce drop-shadow-[0_0_8px_rgba(34,211,238,0.4)]">
+            <Trophy className="w-3.5 h-3.5 text-cyan-400" />
             <span>NEW PERSONAL BEST!</span>
           </div>
         )}
@@ -145,7 +157,7 @@ export const ConfirmSessionModal: React.FC<ConfirmSessionModalProps> = ({
         </button>
 
         <span className="text-[10px] text-neutral-500 mt-2 font-mono">
-          Press Enter ↵ to confirm • +/- to adjust (hold for ±3)
+          Press Enter ↵ or Space twice to confirm • +/- to adjust
         </span>
       </div>
     </div>
