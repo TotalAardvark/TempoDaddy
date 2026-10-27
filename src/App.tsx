@@ -870,8 +870,8 @@ export default function App() {
           />
         </div>
 
-        {/* Done Button: Centered with balanced margins */}
-        <div className="shrink-0 w-full flex flex-col items-center justify-center pt-2 pb-2">
+        {/* Done Button: Centered with comfortable spacing from footer */}
+        <div className="shrink-0 w-full flex flex-col items-center justify-center pt-2 pb-3.5">
           <button
             type="button"
             onClick={handleDoneClick}
@@ -884,7 +884,7 @@ export default function App() {
       </div>
 
       {/* Auxiliary Controls (Exit, Play/Pause, Skip) */}
-      <footer className="w-full max-w-[340px] shrink-0 pt-1 pb-1">
+      <footer className="w-full max-w-[340px] shrink-0 pt-2 pb-1.5">
         <div className="flex items-center justify-between px-2 text-neutral-400">
           {/* Exit Button */}
           <button
