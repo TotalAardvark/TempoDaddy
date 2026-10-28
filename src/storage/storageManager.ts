@@ -90,7 +90,7 @@ export const storageManager = {
       let isNewPb = false;
 
       if (skillIndex !== -1) {
-        if (session.bpm > skills[skillIndex].personalBestBpm) {
+        if (session.isPersonalBest || session.bpm > skills[skillIndex].personalBestBpm) {
           skills[skillIndex].personalBestBpm = session.bpm;
           isNewPb = true;
           this.saveSkills(skills);

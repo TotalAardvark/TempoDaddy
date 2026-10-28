@@ -9,6 +9,7 @@ interface ConfirmSessionModalProps {
   sticking?: string;
   initialBpm: number;
   personalBestBpm: number;
+  isFirstRun?: boolean;
   onConfirm: (finalBpm: number) => void;
   onCancel: () => void;
 }
@@ -19,6 +20,7 @@ export const ConfirmSessionModal: React.FC<ConfirmSessionModalProps> = ({
   sticking,
   initialBpm,
   personalBestBpm,
+  isFirstRun = false,
   onConfirm,
   onCancel,
 }) => {
@@ -28,7 +30,7 @@ export const ConfirmSessionModal: React.FC<ConfirmSessionModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       setLoggedBpm(initialBpm);
-      if (initialBpm > personalBestBpm) {
+      if (isFirstRun || initialBpm > personalBestBpm) {
         confetti({
           particleCount: 70,
           spread: 60,
@@ -36,7 +38,7 @@ export const ConfirmSessionModal: React.FC<ConfirmSessionModalProps> = ({
         });
       }
     }
-  }, [isOpen, initialBpm, personalBestBpm]);
+  }, [isOpen, initialBpm, personalBestBpm, isFirstRun]);
 
   // Handle Enter/Space (single-tap to confirm), Escape to cancel, and +/- keys
   useEffect(() => {
@@ -72,7 +74,7 @@ export const ConfirmSessionModal: React.FC<ConfirmSessionModalProps> = ({
 
   if (!isOpen) return null;
 
-  const isNewPb = loggedBpm > personalBestBpm;
+  const isNewPb = isFirstRun || loggedBpm > personalBestBpm;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-150">

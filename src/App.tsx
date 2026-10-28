@@ -304,13 +304,17 @@ export default function App() {
   const handleLogAndExit = () => {
     if (currentSkill) {
       const durationSeconds = Math.max(10, Math.round((Date.now() - sessionStartTimeRef.current) / 1000));
+      const hasPreviousRuns = storageManager.getSkillHistory(currentSkill.id).length > 0;
+      const isFirstRun = !hasPreviousRuns;
+      const isPersonalBest = isFirstRun || bpm > currentSkill.personalBestBpm;
+
       const newSession: PracticeSessionLog = {
         id: 'session-' + Date.now(),
         skillId: currentSkill.id,
         date: new Date().toISOString(),
         bpm,
         durationSeconds,
-        isPersonalBest: bpm > currentSkill.personalBestBpm,
+        isPersonalBest,
       };
 
       storageManager.addSession(newSession);
@@ -454,13 +458,17 @@ export default function App() {
     setCompletedSkillIds((prev) => new Set(prev).add(currentSkill.id));
 
     const durationSeconds = Math.max(10, Math.round((Date.now() - sessionStartTimeRef.current) / 1000));
+    const hasPreviousRuns = storageManager.getSkillHistory(currentSkill.id).length > 0;
+    const isFirstRun = !hasPreviousRuns;
+    const isPersonalBest = isFirstRun || finalBpm > currentSkill.personalBestBpm;
+
     const newSession: PracticeSessionLog = {
       id: 'session-' + Date.now(),
       skillId: currentSkill.id,
       date: new Date().toISOString(),
       bpm: finalBpm,
       durationSeconds,
-      isPersonalBest: finalBpm > currentSkill.personalBestBpm,
+      isPersonalBest,
     };
 
     // Store session and update PB in storage
@@ -1023,6 +1031,7 @@ export default function App() {
           sticking={currentSkill.sticking}
           initialBpm={bpm}
           personalBestBpm={currentSkill.personalBestBpm}
+          isFirstRun={storageManager.getSkillHistory(currentSkill.id).length === 0}
           onConfirm={handleConfirmSession}
           onCancel={() => {
             setIsConfirmModalOpen(false);
