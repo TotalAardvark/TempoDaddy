@@ -1,10 +1,11 @@
-import type { Skill, PracticeSessionLog, TempoRampSettings, MetronomeTimbre } from '../types';
+import type { Skill, PracticeSessionLog, TempoRampSettings, MetronomeTimbre, PbDisplayRange } from '../types';
 import { INITIAL_SKILLS } from '../data/initialSkills';
 
 const SKILLS_KEY = 'tempo_skills_v1';
 const SESSIONS_KEY = 'tempo_sessions_v1';
 const TEMPO_RAMP_KEY = 'tempo_coach_ramp_settings_v1';
 const TIMBRE_KEY = 'tempo_coach_metronome_timbre_v1';
+const PB_DISPLAY_RANGE_KEY = 'tempo_coach_pb_display_range_v1';
 const DEFAULT_TIMBRE: MetronomeTimbre = 'woodblock';
 
 export const DEFAULT_RAMP_SETTINGS: TempoRampSettings = {
@@ -201,6 +202,26 @@ export const storageManager = {
 
   resetPbCounter(): void {
     localStorage.setItem('tempo_coach_pb_reset_date', new Date().toISOString());
+  },
+
+  getPbDisplayRange(): PbDisplayRange {
+    try {
+      const stored = localStorage.getItem(PB_DISPLAY_RANGE_KEY);
+      if (stored === 'thisWeek' || stored === 'thisMonth' || stored === 'allTime') {
+        return stored;
+      }
+    } catch (e) {
+      console.error('Failed to get pb display range', e);
+    }
+    return 'allTime';
+  },
+
+  setPbDisplayRange(range: PbDisplayRange): void {
+    try {
+      localStorage.setItem(PB_DISPLAY_RANGE_KEY, range);
+    } catch (e) {
+      console.error('Failed to save pb display range', e);
+    }
   },
 
   getPracticedDates(): string[] {

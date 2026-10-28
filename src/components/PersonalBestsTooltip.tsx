@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
-import { RotateCcw, X, Trophy } from 'lucide-react';
+import { X, Trophy } from 'lucide-react';
+import type { PbDisplayRange } from '../types';
 
 interface PersonalBestsTooltipProps {
   isOpen: boolean;
@@ -11,14 +12,16 @@ interface PersonalBestsTooltipProps {
     sinceReset: number;
     resetDate: string | null;
   };
-  onResetCounter: () => void;
+  displayRange: PbDisplayRange;
+  onDisplayRangeChange: (range: PbDisplayRange) => void;
 }
 
 export const PersonalBestsTooltip: React.FC<PersonalBestsTooltipProps> = ({
   isOpen,
   onClose,
   stats,
-  onResetCounter,
+  displayRange,
+  onDisplayRangeChange,
 }) => {
   const popoverRef = useRef<HTMLDivElement>(null);
 
@@ -82,39 +85,53 @@ export const PersonalBestsTooltip: React.FC<PersonalBestsTooltipProps> = ({
 
       {/* Stats List */}
       <div className="flex flex-col gap-2 font-mono text-xs">
-        <div className="flex items-center justify-between py-1 px-2 rounded-lg bg-neutral-950/50">
-          <span className="text-neutral-400">This Week:</span>
+        <div
+          className={`flex items-center justify-between py-1.5 px-2 rounded-lg transition ${
+            displayRange === 'thisWeek'
+              ? 'bg-cyan-950/60 border border-cyan-500/40 text-cyan-300'
+              : 'bg-neutral-950/50 text-neutral-400'
+          }`}
+        >
+          <span>This Week:</span>
           <span className="font-bold text-cyan-300 text-sm">{currentStats.thisWeek}</span>
         </div>
-        <div className="flex items-center justify-between py-1 px-2 rounded-lg bg-neutral-950/50">
-          <span className="text-neutral-400">This Month:</span>
+        <div
+          className={`flex items-center justify-between py-1.5 px-2 rounded-lg transition ${
+            displayRange === 'thisMonth'
+              ? 'bg-cyan-950/60 border border-cyan-500/40 text-cyan-300'
+              : 'bg-neutral-950/50 text-neutral-400'
+          }`}
+        >
+          <span>This Month:</span>
           <span className="font-bold text-cyan-300 text-sm">{currentStats.thisMonth}</span>
         </div>
-        <div className="flex items-center justify-between py-1 px-2 rounded-lg bg-neutral-950/50">
-          <span className="text-neutral-400">All Time:</span>
+        <div
+          className={`flex items-center justify-between py-1.5 px-2 rounded-lg transition ${
+            displayRange === 'allTime'
+              ? 'bg-amber-950/50 border border-amber-500/40 text-amber-300'
+              : 'bg-neutral-950/50 text-neutral-400'
+          }`}
+        >
+          <span>All Time:</span>
           <span className="font-bold text-amber-400 text-sm">{currentStats.allTime}</span>
-        </div>
-        <div className="flex items-center justify-between py-1 px-2 rounded-lg bg-neutral-950/50 border border-neutral-800/80">
-          <span className="text-neutral-300">Since Last Reset:</span>
-          <span className="font-bold text-white text-sm">{currentStats.sinceReset}</span>
         </div>
       </div>
 
-      {/* Reset Counter Action */}
+      {/* Show: Dropdown selector */}
       <div className="mt-3 pt-2.5 border-t border-neutral-800/80 flex items-center justify-between">
-        <span className="text-[10px] text-neutral-500 font-mono">
-          {currentStats.resetDate
-            ? `Reset: ${new Date(currentStats.resetDate).toLocaleDateString(undefined, { month: 'numeric', day: 'numeric' })}`
-            : 'Never reset'}
-        </span>
-        <button
-          type="button"
-          onClick={onResetCounter}
-          className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-mono font-medium rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white border border-neutral-700/80 active:scale-95 transition"
+        <label htmlFor="pb-range-select" className="text-xs text-neutral-400 font-medium">
+          Show:
+        </label>
+        <select
+          id="pb-range-select"
+          value={displayRange}
+          onChange={(e) => onDisplayRangeChange(e.target.value as PbDisplayRange)}
+          className="bg-neutral-800 hover:bg-neutral-700 text-white text-xs font-semibold rounded-lg px-2 py-1.5 border border-neutral-700 focus:outline-none focus:border-cyan-400 cursor-pointer"
         >
-          <RotateCcw className="w-3 h-3 text-neutral-400" />
-          <span>Reset Counter</span>
-        </button>
+          <option value="thisWeek">This Week</option>
+          <option value="thisMonth">This Month</option>
+          <option value="allTime">All Time</option>
+        </select>
       </div>
     </div>
   );

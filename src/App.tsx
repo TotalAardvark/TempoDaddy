@@ -10,7 +10,7 @@ import {
   Volume2,
   Trophy,
 } from 'lucide-react';
-import type { Skill, Subdivision, PracticeSessionLog, TempoRampSettings, MetronomeTimbre } from './types';
+import type { Skill, Subdivision, PracticeSessionLog, TempoRampSettings, MetronomeTimbre, PbDisplayRange } from './types';
 import { MetronomeEngine, type MetronomeTickEvent } from './audio/metronomeEngine';
 import { storageManager } from './storage/storageManager';
 import {
@@ -47,8 +47,8 @@ export default function App() {
     storageManager.getSessions().filter((s) => s.date.slice(0, 10) === new Date().toISOString().slice(0, 10))
   );
   const [streak, setStreak] = useState<number>(() => storageManager.calculateStreak());
-  const [weeklyPbCount, setWeeklyPbCount] = useState<number>(() => storageManager.getWeeklyPbCount());
   const [pbStats, setPbStats] = useState(() => storageManager.getPbStats());
+  const [pbDisplayRange, setPbDisplayRange] = useState<PbDisplayRange>(() => storageManager.getPbDisplayRange());
   const [isPbTooltipOpen, setIsPbTooltipOpen] = useState<boolean>(false);
   const [isStreakTooltipOpen, setIsStreakTooltipOpen] = useState<boolean>(false);
   const [timbre, setTimbre] = useState<MetronomeTimbre>(() => storageManager.getMetronomeTimbre());
@@ -318,7 +318,6 @@ export default function App() {
       setSkills(updatedSkills);
       setTodaySessions((prev) => [...prev, newSession]);
       setStreak(storageManager.calculateStreak());
-      setWeeklyPbCount(storageManager.getWeeklyPbCount());
       setPbStats(storageManager.getPbStats());
     }
 
@@ -474,7 +473,6 @@ export default function App() {
     setSkills(updatedSkills);
     setTodaySessions((prev) => [...prev, newSession]);
     setStreak(storageManager.calculateStreak());
-    setWeeklyPbCount(storageManager.getWeeklyPbCount());
     setPbStats(storageManager.getPbStats());
 
     setIsConfirmModalOpen(false);
@@ -564,10 +562,22 @@ export default function App() {
     }
   };
 
-  const handleResetPbCounter = () => {
-    storageManager.resetPbCounter();
-    setPbStats(storageManager.getPbStats());
+  const handlePbDisplayRangeChange = (range: PbDisplayRange) => {
+    setPbDisplayRange(range);
+    storageManager.setPbDisplayRange(range);
   };
+
+  const pbDisplayCount = useMemo(() => {
+    switch (pbDisplayRange) {
+      case 'thisWeek':
+        return pbStats.thisWeek;
+      case 'thisMonth':
+        return pbStats.thisMonth;
+      case 'allTime':
+      default:
+        return pbStats.allTime;
+    }
+  }, [pbDisplayRange, pbStats]);
 
   const handleReorderSkill = (fromIndex: number, toIndex: number) => {
     if (toIndex < 0 || toIndex >= skills.length) return;
@@ -637,7 +647,6 @@ export default function App() {
       storageManager.getSessions().filter((s) => s.date.slice(0, 10) === new Date().toISOString().slice(0, 10))
     );
     setStreak(storageManager.calculateStreak());
-    setWeeklyPbCount(storageManager.getWeeklyPbCount());
     setPbStats(storageManager.getPbStats());
     setTimbre(storageManager.getMetronomeTimbre());
     setTempoRampSettings(storageManager.getTempoRampSettings());
@@ -688,14 +697,15 @@ export default function App() {
           history={topSkillHistory}
           streak={streak}
           practicedDates={practicedDates}
-          weeklyPbCount={weeklyPbCount}
+          pbDisplayCount={pbDisplayCount}
           pbStats={pbStats}
+          pbDisplayRange={pbDisplayRange}
+          onPbDisplayRangeChange={handlePbDisplayRangeChange}
           isRandomOrder={isRandomOrder}
           onToggleRandomOrder={(val) => {
             setIsRandomOrder(val);
             localStorage.setItem('tempo_coach_random_order', String(val));
           }}
-          onResetPbCounter={handleResetPbCounter}
           onStart={handleColdStart}
           onOpenLibrary={() => setIsLibraryOpen(true)}
         />
@@ -730,7 +740,8 @@ export default function App() {
           completedSkillIds={completedSkillIds}
           streak={streak}
           pbStats={pbStats}
-          onResetPbCounter={handleResetPbCounter}
+          pbDisplayRange={pbDisplayRange}
+          onPbDisplayRangeChange={handlePbDisplayRangeChange}
           onRestartRoutine={handleRestartRoutine}
           onReturnToStart={() => {
             setIsRoutineFinished(false);
@@ -802,14 +813,15 @@ export default function App() {
               title="Personal Bests stats (click to expand)"
             >
               <Trophy className="w-3.5 h-3.5 fill-cyan-400 text-cyan-400 shrink-0" strokeWidth={2.25} />
-              <span>{weeklyPbCount}</span>
+              <span>{pbDisplayCount}</span>
             </button>
 
             <PersonalBestsTooltip
               isOpen={isPbTooltipOpen}
               onClose={() => setIsPbTooltipOpen(false)}
               stats={pbStats}
-              onResetCounter={handleResetPbCounter}
+              displayRange={pbDisplayRange}
+              onDisplayRangeChange={handlePbDisplayRangeChange}
             />
           </div>
 

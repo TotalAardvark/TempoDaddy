@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { Trophy, Flame, CheckCircle, ListMusic, Trash2, Sun, ChevronDown, ChevronRight, Sparkles, RotateCcw } from 'lucide-react';
-import type { Skill, PracticeSessionLog } from '../types';
+import type { Skill, PracticeSessionLog, PbDisplayRange } from '../types';
 import { storageManager } from '../storage/storageManager';
 import { TealProgressGraph } from './TealProgressGraph';
 import { StickingDisplay } from './StickingDisplay';
@@ -19,7 +19,8 @@ interface RoutineCompleteScreenProps {
     sinceReset: number;
     resetDate: string | null;
   };
-  onResetPbCounter?: () => void;
+  pbDisplayRange?: PbDisplayRange;
+  onPbDisplayRangeChange?: (range: PbDisplayRange) => void;
   onRestartRoutine?: () => void;
   onReturnToStart?: () => void;
   onReturnToTitle: () => void;
@@ -34,7 +35,8 @@ export const RoutineCompleteScreen: React.FC<RoutineCompleteScreenProps> = ({
   completedSkillIds,
   streak,
   pbStats,
-  onResetPbCounter,
+  pbDisplayRange = 'allTime',
+  onPbDisplayRangeChange,
   onReturnToStart,
   onReturnToTitle,
   onOpenLibrary,
@@ -159,7 +161,8 @@ export const RoutineCompleteScreen: React.FC<RoutineCompleteScreenProps> = ({
             isOpen={isPbTooltipOpen}
             onClose={() => setIsPbTooltipOpen(false)}
             stats={pbStats}
-            onResetCounter={onResetPbCounter || (() => {})}
+            displayRange={pbDisplayRange}
+            onDisplayRangeChange={onPbDisplayRangeChange || (() => {})}
           />
         </div>
 

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Play, Flame, Music, ListMusic, Trophy } from 'lucide-react';
-import type { Skill, PracticeSessionLog } from '../types';
+import type { Skill, PracticeSessionLog, PbDisplayRange } from '../types';
 import { TealProgressGraph } from './TealProgressGraph';
 import { PersonalBestsTooltip } from './PersonalBestsTooltip';
 import { StreakCalendarTooltip } from './StreakCalendarTooltip';
@@ -10,7 +10,7 @@ interface ColdStartScreenProps {
   history?: PracticeSessionLog[];
   streak: number;
   practicedDates?: string[];
-  weeklyPbCount?: number;
+  pbDisplayCount?: number;
   pbStats?: {
     thisWeek: number;
     thisMonth: number;
@@ -18,9 +18,10 @@ interface ColdStartScreenProps {
     sinceReset: number;
     resetDate: string | null;
   };
+  pbDisplayRange: PbDisplayRange;
+  onPbDisplayRangeChange: (range: PbDisplayRange) => void;
   isRandomOrder?: boolean;
   onToggleRandomOrder?: (random: boolean) => void;
-  onResetPbCounter?: () => void;
   onStart: () => void;
   onOpenLibrary: () => void;
 }
@@ -30,11 +31,12 @@ export const ColdStartScreen: React.FC<ColdStartScreenProps> = ({
   history = [],
   streak,
   practicedDates = [],
-  weeklyPbCount = 0,
+  pbDisplayCount = 0,
   pbStats,
+  pbDisplayRange,
+  onPbDisplayRangeChange,
   isRandomOrder = false,
   onToggleRandomOrder,
-  onResetPbCounter,
   onStart,
   onOpenLibrary,
 }) => {
@@ -102,14 +104,15 @@ export const ColdStartScreen: React.FC<ColdStartScreenProps> = ({
               title="Personal Bests stats (click to expand)"
             >
               <Trophy className="w-3.5 h-3.5 fill-cyan-400 text-cyan-400 shrink-0" strokeWidth={2.25} />
-              <span>{weeklyPbCount}</span>
+              <span>{pbDisplayCount}</span>
             </button>
 
             <PersonalBestsTooltip
               isOpen={isPbTooltipOpen}
               onClose={() => setIsPbTooltipOpen(false)}
               stats={pbStats}
-              onResetCounter={onResetPbCounter || (() => {})}
+              displayRange={pbDisplayRange}
+              onDisplayRangeChange={onPbDisplayRangeChange}
             />
           </div>
 

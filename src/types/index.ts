@@ -4,6 +4,8 @@ export type MetronomeTimbre = 'woodblock' | 'beep' | 'loud';
 
 export type SkillCategory = 'drumming' | 'piano' | 'guitar' | 'general';
 
+export type PbDisplayRange = 'thisWeek' | 'thisMonth' | 'allTime';
+
 export interface PracticeSessionLog {
   id: string;
   skillId: string;
