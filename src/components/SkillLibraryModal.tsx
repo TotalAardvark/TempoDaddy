@@ -71,8 +71,8 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
   const [customTitle, setCustomTitle] = useState('');
   const [customSticking, setCustomSticking] = useState('');
   const [customNotes, setCustomNotes] = useState('');
-  const [customPb, setCustomPb] = useState(100);
-  const [customSubdivision, setCustomSubdivision] = useState<Subdivision>('1/16');
+  const [customPb, setCustomPb] = useState<number | ''>(40);
+  const [customSubdivision, setCustomSubdivision] = useState<Subdivision>('1/8');
   const [customIsTriplet, setCustomIsTriplet] = useState(false);
 
   // Tap tempo handling
@@ -192,12 +192,14 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
     e.preventDefault();
     if (!customTitle.trim()) return;
 
+    const tempo = typeof customPb === 'number' && !isNaN(customPb) ? customPb : 40;
+
     onAddSkill({
       title: customTitle.trim(),
       category: 'drumming',
       sticking: customSticking.trim() || undefined,
       notes: customNotes.trim() || undefined,
-      personalBestBpm: customPb,
+      personalBestBpm: tempo,
       subdivision: customSubdivision,
       isTriplet: customIsTriplet,
     });
@@ -206,7 +208,9 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
     setCustomTitle('');
     setCustomSticking('');
     setCustomNotes('');
-    setCustomPb(100);
+    setCustomPb(40);
+    setCustomSubdivision('1/8');
+    setCustomIsTriplet(false);
     setIsAdding(false);
   };
 
@@ -361,8 +365,8 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
                                   </div>
                                 </div>
 
-                                <div className="col-span-4">
-                                  <label className="text-[11px] text-neutral-400 block mb-1 truncate">
+                                <div className="col-span-5">
+                                  <label className="text-[11px] text-neutral-400 block mb-1">
                                     Default Subdivision
                                   </label>
                                   <select
@@ -376,8 +380,8 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
                                   </select>
                                 </div>
 
-                                <div className="col-span-3 flex flex-col items-end justify-end">
-                                  <label className="text-[11px] text-neutral-400 block mb-1 truncate w-full text-right">
+                                <div className="col-span-2 flex flex-col items-end justify-end">
+                                  <label className="text-[11px] text-neutral-400 block mb-1 w-full text-right">
                                     Triplets
                                   </label>
                                   <div className="h-[34px] flex items-center justify-end w-full">
@@ -637,8 +641,8 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
                                       </div>
                                     </div>
 
-                                    <div className="col-span-4">
-                                      <label className="text-[11px] text-neutral-400 block mb-1 truncate">
+                                    <div className="col-span-5">
+                                      <label className="text-[11px] text-neutral-400 block mb-1">
                                         Default Subdivision
                                       </label>
                                       <select
@@ -652,8 +656,8 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
                                       </select>
                                     </div>
 
-                                    <div className="col-span-3 flex flex-col items-end justify-end">
-                                      <label className="text-[11px] text-neutral-400 block mb-1 truncate w-full text-right">
+                                    <div className="col-span-2 flex flex-col items-end justify-end">
+                                      <label className="text-[11px] text-neutral-400 block mb-1 w-full text-right">
                                         Triplets
                                       </label>
                                       <div className="h-[34px] flex items-center justify-end w-full">
@@ -884,8 +888,17 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
                           type="number"
                           min="30"
                           max="300"
+                          placeholder="40"
                           value={customPb}
-                          onChange={(e) => setCustomPb(parseInt(e.target.value) || 80)}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (val === '') {
+                              setCustomPb('');
+                            } else {
+                              const parsed = parseInt(val, 10);
+                              setCustomPb(isNaN(parsed) ? '' : parsed);
+                            }
+                          }}
                           className="w-full min-w-0 bg-neutral-900 border border-neutral-800 rounded-xl px-2.5 py-2 text-xs text-white font-mono focus:outline-none focus:border-amber-400"
                         />
                         <button
@@ -899,8 +912,8 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
                       </div>
                     </div>
 
-                    <div className="col-span-4">
-                      <label className="text-[11px] text-neutral-400 block mb-1 truncate">
+                    <div className="col-span-5">
+                      <label className="text-[11px] text-neutral-400 block mb-1">
                         Default Subdivision
                       </label>
                       <select
@@ -914,8 +927,8 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
                       </select>
                     </div>
 
-                    <div className="col-span-3 flex flex-col items-end justify-end">
-                      <label className="text-[11px] text-neutral-400 block mb-1 truncate w-full text-right">
+                    <div className="col-span-2 flex flex-col items-end justify-end">
+                      <label className="text-[11px] text-neutral-400 block mb-1 w-full text-right">
                         Triplets
                       </label>
                       <div className="h-[34px] flex items-center justify-end w-full">

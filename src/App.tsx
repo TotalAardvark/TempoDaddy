@@ -549,6 +549,21 @@ export default function App() {
     triggerDebouncedCloudSync();
   };
 
+  const handleSubdivisionChange = (newSub: Subdivision) => {
+    setSubdivision(newSub);
+    if (currentSkill) {
+      handleUpdateSkill(currentSkill.id, { subdivision: newSub });
+    }
+  };
+
+  const handleTripletToggle = () => {
+    const nextTriplet = !isTriplet;
+    setIsTriplet(nextTriplet);
+    if (currentSkill) {
+      handleUpdateSkill(currentSkill.id, { isTriplet: nextTriplet });
+    }
+  };
+
   const handleResetPbCounter = () => {
     storageManager.resetPbCounter();
     setPbStats(storageManager.getPbStats());
@@ -887,8 +902,8 @@ export default function App() {
             <SubdivisionControls
               subdivision={subdivision}
               isTriplet={isTriplet}
-              onSubdivisionChange={setSubdivision}
-              onTripletToggle={() => setIsTriplet((prev) => !prev)}
+              onSubdivisionChange={handleSubdivisionChange}
+              onTripletToggle={handleTripletToggle}
             />
           </div>
         </div>
