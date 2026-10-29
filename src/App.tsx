@@ -176,6 +176,55 @@ export default function App() {
     }
   }, [timbre]);
 
+  // Keep screen awake while metronome is actively playing (Screen Wake Lock API)
+  useEffect(() => {
+    let wakeLock: WakeLockSentinel | null = null;
+    let isCancelled = false;
+
+    const acquireLock = async () => {
+      if (!('wakeLock' in navigator)) return;
+      try {
+        wakeLock = await navigator.wakeLock.request('screen');
+        wakeLock.addEventListener('release', () => {
+          wakeLock = null;
+        });
+      } catch (err) {
+        // May fail if tab is in background or low battery mode
+        console.warn('Wake Lock request error:', err);
+      }
+    };
+
+    const releaseLock = async () => {
+      if (wakeLock) {
+        try {
+          await wakeLock.release();
+        } catch {
+          // Ignore release errors
+        }
+        wakeLock = null;
+      }
+    };
+
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'visible' && isPlaying && !wakeLock && !isCancelled) {
+        await acquireLock();
+      }
+    };
+
+    if (isPlaying) {
+      acquireLock();
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+    } else {
+      releaseLock();
+    }
+
+    return () => {
+      isCancelled = true;
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      releaseLock();
+    };
+  }, [isPlaying]);
+
   // Cycle metronome timbre between woodblock, digital beep, and loud
   const handleCycleTimbre = () => {
     const timbres: MetronomeTimbre[] = ['woodblock', 'beep', 'loud'];

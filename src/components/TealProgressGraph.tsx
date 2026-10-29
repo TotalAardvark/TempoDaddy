@@ -70,8 +70,13 @@ export const TealProgressGraph: React.FC<TealProgressGraphProps> = ({
   const areaPoints = `${polylinePoints} ${coords[coords.length - 1].x.toFixed(1)},${height} ${coords[0].x.toFixed(1)},${height}`;
 
   const latestCoord = coords[coords.length - 1];
-  const firstCoord = coords[0];
-  const bpmDelta = latestCoord.val - firstCoord.val;
+
+  // Calculate lifetime net gain when there are at least 2 sessions:
+  // Personal Best BPM minus the initial session's BPM.
+  const netGain =
+    history.length >= 2
+      ? personalBestBpm - history[0].bpm
+      : null;
 
   const handleClick = (e: React.MouseEvent) => {
     if (onClick) {
@@ -207,16 +212,16 @@ export const TealProgressGraph: React.FC<TealProgressGraphProps> = ({
 
         {showLabels && (
           <div className="flex items-center gap-1.5 mt-1 text-[10px] font-mono text-cyan-400/80 group-hover:text-cyan-300 transition-colors">
-            {recentLogs.length >= 2 ? (
+            {history.length >= 2 ? (
               <>
-                {bpmDelta !== 0 && (
-                  <span className={bpmDelta > 0 ? 'text-emerald-400 font-bold' : 'text-neutral-400'}>
-                    {bpmDelta > 0 ? `+${bpmDelta}` : bpmDelta} BPM
+                {netGain !== null && netGain !== 0 && (
+                  <span className={netGain > 0 ? 'text-emerald-400 font-bold' : 'text-neutral-400'}>
+                    {netGain > 0 ? `+${netGain}` : netGain} BPM
                   </span>
                 )}
-                <span>({recentLogs.length} logged)</span>
+                <span>({history.length} logged)</span>
               </>
-            ) : recentLogs.length === 1 ? (
+            ) : history.length === 1 ? (
               <span>1 session logged</span>
             ) : (
               <span>No sessions yet</span>
