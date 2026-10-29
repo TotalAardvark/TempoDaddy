@@ -32,7 +32,7 @@ Tracking file for feature requests, ideas, and backlog tasks.
 | FR-011 | Import/export skills or workouts via QR code | P2 | C1 | Open |
 | FR-009 | Onboarding experience design for new users | P3 | C2 | Open |
 | FR-010 | Text size accessibility (Large Text mode in settings) | P3 | C1 | Open |
-| FR-012 | Exercise edit capabilities: duplicate and flip (invert hands R<->L) | P3 | C1 | Open |
+| FR-012 | Exercise edit capabilities: duplicate and flip (invert hands R<->L) | P3 | C1 | Completed |
 
 ---
 
@@ -66,6 +66,14 @@ Tracking file for feature requests, ideas, and backlog tasks.
   - Ensured cyan progress graphs render cleanly across mobile views (PWA standalone, phone viewports, and native iOS wrappers).
   - Replaced static queue text with a dynamic summary of newly smashed personal bests from that session.
   - Replaced "Daily Routine Complete" with a cyan lifetime PB trophy badge showing animated count-up (`previous total` -> `current total`) and `+x` pill.
+
+#### [FR-012] Exercise Edit Capabilities: Duplicate and Flip
+- **Priority**: P3 (High)
+- **Complexity**: C1 (Medium-Low)
+- **Status**: Completed
+- **Description**: Add exercise management actions:
+  - **Duplicate**: Clone an existing exercise in place within the queue, auto-switching into edit mode for the newly cloned exercise with smooth visual feedback.
+  - **Flip / Invert**: Invert sticking patterns (preserving case: `R` <-> `L`, `r` <-> `l`) and intelligently update title leads (`(Left)` / `(Right)`).
 
 ---
 
@@ -147,11 +155,3 @@ Tracking file for feature requests, ideas, and backlog tasks.
 - **Complexity**: C1 (Medium-Low)
 - **Status**: Open
 - **Description**: Add text size adjustment for accessibility, potentially via a toggleable "Large Text" mode in Settings.
-
-#### [FR-012] Exercise Edit Capabilities: Duplicate and Flip
-- **Priority**: P3 (High)
-- **Complexity**: C1 (Medium-Low)
-- **Status**: Open
-- **Description**: Add exercise management actions:
-  - **Duplicate**: Clone an existing exercise.
-  - **Flip**: Invert sticking patterns (swap right and left hands, `R` <-> `L`).
