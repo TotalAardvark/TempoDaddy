@@ -520,7 +520,7 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
                           key={skill.id}
                           className="bg-neutral-950/60 border border-neutral-800/80 rounded-2xl p-3 flex items-center justify-between gap-3 group hover:border-neutral-700 transition"
                         >
-                          {/* Left: Pencil button to edit, Title & PB in yellow underneath */}
+                          {/* Left: Pencil button to edit, Title & PB in yellow underneath & Progress Chart */}
                           <div className="flex items-center gap-2.5 min-w-0 flex-1">
                             <button
                               type="button"
@@ -535,20 +535,19 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
                               <div className="text-xs font-mono font-bold text-amber-400">
                                 Personal Best: {history.length > 0 ? skill.personalBestBpm : '???'}
                               </div>
+                              {/* Cyan Progress Chart below Personal Best */}
+                              <div className="mt-1.5">
+                                <TealProgressGraph
+                                  history={history}
+                                  personalBestBpm={skill.personalBestBpm}
+                                  skillTitle={skill.title}
+                                  sticking={skill.sticking}
+                                  width={100}
+                                  height={26}
+                                  showLabels={false}
+                                />
+                              </div>
                             </div>
-                          </div>
-
-                          {/* Middle: Cyan Progress Graph */}
-                          <div className="shrink-0 hidden sm:block">
-                            <TealProgressGraph
-                              history={history}
-                              personalBestBpm={skill.personalBestBpm}
-                              skillTitle={skill.title}
-                              sticking={skill.sticking}
-                              width={95}
-                              height={28}
-                              showLabels={false}
-                            />
                           </div>
 
                           {/* Right Controls */}
@@ -841,6 +840,18 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
                                   <div className="text-sm font-bold text-neutral-300 truncate">{skill.title}</div>
                                   <div className="text-xs font-mono font-bold text-amber-400/80">
                                     Personal Best: {history.length > 0 ? skill.personalBestBpm : '???'}
+                                  </div>
+                                  {/* Cyan Progress Chart below Personal Best */}
+                                  <div className="mt-1.5 opacity-75">
+                                    <TealProgressGraph
+                                      history={history}
+                                      personalBestBpm={skill.personalBestBpm}
+                                      skillTitle={skill.title}
+                                      sticking={skill.sticking}
+                                      width={100}
+                                      height={26}
+                                      showLabels={false}
+                                    />
                                   </div>
                                 </div>
                               </div>
