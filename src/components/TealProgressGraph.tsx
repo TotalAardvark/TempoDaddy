@@ -188,10 +188,10 @@ export const TealProgressGraph: React.FC<TealProgressGraphProps> = ({
               />
             </svg>
 
-            {/* Subtle expand cue icon on hover */}
+            {/* Expand cue icon to clearly indicate clickable/expandable */}
             {interactive && (
-              <div className="absolute -top-1 -left-1 opacity-0 group-hover:opacity-100 transition-opacity bg-neutral-900/80 rounded-md p-0.5 border border-cyan-500/40 pointer-events-none">
-                <Maximize2 className="w-2 h-2 text-cyan-300" />
+              <div className="absolute -top-1 -right-1 opacity-70 group-hover:opacity-100 group-hover:scale-110 transition bg-neutral-900/90 rounded-md p-0.5 border border-cyan-500/50 shadow-sm shadow-cyan-500/20 pointer-events-none">
+                <Maximize2 className="w-2.5 h-2.5 text-cyan-300" />
               </div>
             )}
           </div>

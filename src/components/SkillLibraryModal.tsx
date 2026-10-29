@@ -4,8 +4,6 @@ import {
   Plus,
   Trash2,
   Play,
-  ArrowUp,
-  ArrowDown,
   Download,
   Upload,
   BookOpen,
@@ -18,6 +16,7 @@ import {
   Cloud,
   Copy,
   ArrowLeftRight,
+  GripVertical,
 } from 'lucide-react';
 import type { Skill, PresetSkill, Subdivision } from '../types';
 import { PRESET_SKILLS } from '../data/initialSkills';
@@ -93,6 +92,83 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
   // Duplication animation feedback state
   const [isDuplicating, setIsDuplicating] = useState(false);
   const [duplicateSuccessText, setDuplicateSuccessText] = useState<string | null>(null);
+
+  // Delete confirmation state inside Edit form
+  const [confirmDeleteSkillId, setConfirmDeleteSkillId] = useState<string | null>(null);
+  const deleteConfirmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Drag-and-drop reordering state
+  const [draggingSkillId, setDraggingSkillId] = useState<string | null>(null);
+  const [dragOverSkillId, setDragOverSkillId] = useState<string | null>(null);
+  const activeSkillsListRef = useRef<HTMLDivElement | null>(null);
+
+  const handleDeleteWithConfirm = (skillId: string) => {
+    if (confirmDeleteSkillId === skillId) {
+      if (deleteConfirmTimerRef.current) clearTimeout(deleteConfirmTimerRef.current);
+      setConfirmDeleteSkillId(null);
+      setEditingSkill(null);
+      onDeleteSkill(skillId);
+    } else {
+      setConfirmDeleteSkillId(skillId);
+      if (deleteConfirmTimerRef.current) clearTimeout(deleteConfirmTimerRef.current);
+      deleteConfirmTimerRef.current = setTimeout(() => {
+        setConfirmDeleteSkillId(null);
+      }, 3500);
+    }
+  };
+
+  const handlePointerReorderStart = (
+    e: React.PointerEvent,
+    fromSkill: Skill
+  ) => {
+    e.preventDefault();
+    const target = e.currentTarget as HTMLElement;
+    target.setPointerCapture(e.pointerId);
+    setDraggingSkillId(fromSkill.id);
+
+    const onPointerMove = (moveEvent: PointerEvent) => {
+      // Find element under pointer
+      const elementUnder = document.elementFromPoint(moveEvent.clientX, moveEvent.clientY);
+      const rowElement = elementUnder?.closest('[data-queue-skill-id]') as HTMLElement | null;
+      if (rowElement) {
+        const targetId = rowElement.dataset.queueSkillId;
+        if (targetId && targetId !== fromSkill.id) {
+          setDragOverSkillId(targetId);
+        }
+      }
+    };
+
+    const onPointerUp = (upEvent: PointerEvent) => {
+      target.removeEventListener('pointermove', onPointerMove);
+      target.removeEventListener('pointerup', onPointerUp);
+      try {
+        target.releasePointerCapture(upEvent.pointerId);
+      } catch {
+        // ignore if already released
+      }
+
+      const elementUnder = document.elementFromPoint(upEvent.clientX, upEvent.clientY);
+      const rowElement = elementUnder?.closest('[data-queue-skill-id]') as HTMLElement | null;
+      const targetId = rowElement?.dataset.queueSkillId;
+
+      if (targetId && targetId !== fromSkill.id) {
+        const fromIdx = skills.indexOf(fromSkill);
+        const toSkill = skills.find((s) => s.id === targetId);
+        if (toSkill) {
+          const toIdx = skills.indexOf(toSkill);
+          if (fromIdx !== -1 && toIdx !== -1) {
+            onReorderSkill(fromIdx, toIdx);
+          }
+        }
+      }
+
+      setDraggingSkillId(null);
+      setDragOverSkillId(null);
+    };
+
+    target.addEventListener('pointermove', onPointerMove);
+    target.addEventListener('pointerup', onPointerUp);
+  };
 
   // Tap tempo handling
   const customTapTimesRef = useRef<number[]>([]);
@@ -340,11 +416,13 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
                     </button>
                   </div>
 
-                  <div className="space-y-2">
-                    {activeSkills.map((skill, index) => {
+                  <div ref={activeSkillsListRef} className="space-y-2">
+                    {activeSkills.map((skill) => {
                       const globalIndex = skills.indexOf(skill);
                       const history = storageManager.getSkillHistory(skill.id);
                       const isEditingThisSkill = editingSkill?.id === skill.id;
+                      const isDraggingThisSkill = draggingSkillId === skill.id;
+                      const isDragOverThisSkill = dragOverSkillId === skill.id;
 
                       if (isEditingThisSkill) {
                         return (
@@ -463,36 +541,86 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
                                 </div>
                               </div>
 
-                              {/* Row for Invert and Duplicate buttons */}
-                              <div className="space-y-1.5 pt-0.5">
-                                <div className="flex items-center gap-2">
+                              {/* Quick Actions centered with individual dark grey outlines and pipe dividers */}
+                              <div className="pt-2 border-t border-neutral-850">
+                                <div className="text-[10px] uppercase font-mono tracking-wider text-neutral-400 mb-1.5 flex justify-between items-center px-1">
+                                  <span>Quick Actions</span>
+                                  {duplicateSuccessText && (
+                                    <span className="text-cyan-400 font-sans text-xs animate-in fade-in">
+                                      {duplicateSuccessText}
+                                    </span>
+                                  )}
+                                </div>
+
+                                <div className="flex items-center justify-center gap-2 py-1">
+                                  {/* 1. Invert Button */}
                                   <button
                                     type="button"
                                     onClick={handleInvertEdit}
-                                    className="flex-1 py-2 px-3 bg-neutral-900 hover:bg-neutral-800 active:scale-[0.98] border border-neutral-750 hover:border-amber-400/50 text-neutral-200 rounded-xl font-medium text-xs flex items-center justify-center gap-1.5 transition shadow-sm"
+                                    className="p-2 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-neutral-400 hover:text-amber-400 active:scale-95 transition flex items-center justify-center shadow-sm"
                                     title="Invert Sticking (R ⇄ L) & update title"
                                   >
-                                    <ArrowLeftRight className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                                    <span>Invert (R ⇄ L)</span>
+                                    <ArrowLeftRight className="w-4 h-4" />
                                   </button>
 
+                                  {/* Pipe divider */}
+                                  <div className="h-4 w-[1px] bg-neutral-800" />
+
+                                  {/* 2. Duplicate Button */}
                                   <button
                                     type="button"
                                     onClick={handleDuplicateEdit}
                                     disabled={isDuplicating}
-                                    className="flex-1 py-2 px-3 bg-neutral-900 hover:bg-neutral-800 active:scale-[0.98] border border-neutral-750 hover:border-cyan-400/50 text-neutral-200 rounded-xl font-medium text-xs flex items-center justify-center gap-1.5 transition shadow-sm disabled:opacity-50"
+                                    className="p-2 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-neutral-400 hover:text-cyan-400 active:scale-95 transition flex items-center justify-center shadow-sm disabled:opacity-50"
                                     title="Duplicate this skill into the queue"
                                   >
-                                    <Copy className={`w-3.5 h-3.5 text-cyan-400 shrink-0 ${isDuplicating ? 'animate-spin' : ''}`} />
-                                    <span>Duplicate</span>
+                                    <Copy className={`w-4 h-4 ${isDuplicating ? 'animate-spin' : ''}`} />
                                   </button>
-                                </div>
 
-                                {duplicateSuccessText && (
-                                  <div className="text-[11px] text-cyan-300 font-mono text-center animate-in fade-in py-0.5">
-                                    {duplicateSuccessText}
-                                  </div>
-                                )}
+                                  {/* Pipe divider */}
+                                  <div className="h-4 w-[1px] bg-neutral-800" />
+
+                                  {/* 3. Hibernate Button */}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      onHibernateSkill(editingSkill.id);
+                                      setEditingSkill(null);
+                                    }}
+                                    className="p-2 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-neutral-400 hover:text-indigo-400 active:scale-95 transition flex items-center justify-center shadow-sm font-mono font-bold text-xs"
+                                    title={editingSkill.isHibernated ? 'Wake up skill' : 'Hibernate skill (zZz)'}
+                                  >
+                                    {editingSkill.isHibernated ? (
+                                      <Sun className="w-4 h-4 text-indigo-300" />
+                                    ) : (
+                                      <span className="tracking-tighter">zZz</span>
+                                    )}
+                                  </button>
+
+                                  {/* Pipe divider */}
+                                  <div className="h-4 w-[1px] bg-neutral-800" />
+
+                                  {/* 4. Delete Button with Tap Confirmation Safety */}
+                                  {confirmDeleteSkillId === editingSkill.id ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteWithConfirm(editingSkill.id)}
+                                      className="px-2.5 py-1.5 rounded-xl bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/50 text-[11px] font-bold flex items-center gap-1 animate-in fade-in shadow-sm"
+                                      title="Click again to permanently delete"
+                                    >
+                                      <span>Delete?</span>
+                                    </button>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteWithConfirm(editingSkill.id)}
+                                      className="p-2 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-neutral-400 hover:text-red-400 active:scale-95 transition flex items-center justify-center shadow-sm"
+                                      title="Delete Skill"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  )}
+                                </div>
                               </div>
 
                               <div className="flex gap-2 pt-1">
@@ -518,118 +646,64 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
                       return (
                         <div
                           key={skill.id}
-                          className="bg-neutral-950/60 border border-neutral-800/80 rounded-2xl p-3 flex items-center justify-between gap-3 group hover:border-neutral-700 transition"
+                          data-queue-skill-id={skill.id}
+                          className={`bg-neutral-950/60 border rounded-2xl p-2.5 sm:p-3 flex items-center justify-between gap-2.5 transition ${
+                            isDraggingThisSkill
+                              ? 'opacity-40 border-amber-400 scale-[0.98]'
+                              : isDragOverThisSkill
+                              ? 'border-amber-400 bg-amber-500/10'
+                              : 'border-neutral-800/80 hover:border-neutral-700'
+                          }`}
                         >
-                          {/* Left: Pencil button to edit, Title & PB in yellow underneath */}
-                          <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                            <button
-                              type="button"
-                              onClick={() => handleOpenEdit(skill)}
-                              className="w-7 h-7 rounded-lg bg-neutral-850 hover:bg-neutral-800 border border-neutral-800 hover:border-neutral-700 text-neutral-400 hover:text-amber-400 flex items-center justify-center shrink-0 transition"
-                              title="Edit Practice Settings"
-                            >
-                              <Pencil className="w-3.5 h-3.5" />
-                            </button>
-                            <div className="min-w-0 pr-2">
-                              <div className="text-sm font-bold text-white truncate">{skill.title}</div>
-                              <div className="text-xs font-mono font-bold text-amber-400">
-                                Personal Best: {history.length > 0 ? skill.personalBestBpm : '???'}
-                              </div>
-                              {/* Cyan Progress Chart below Personal Best ONLY on mobile / small screens (phone browsers & mobile PWA) */}
-                              <div className="mt-1.5 block sm:hidden">
-                                <TealProgressGraph
-                                  history={history}
-                                  personalBestBpm={skill.personalBestBpm}
-                                  skillTitle={skill.title}
-                                  sticking={skill.sticking}
-                                  width={100}
-                                  height={26}
-                                  showLabels={false}
-                                />
-                              </div>
+                          {/* Left: Compact Pencil button to edit */}
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEdit(skill)}
+                            className="w-6.5 h-6.5 rounded-lg bg-neutral-850 hover:bg-neutral-800 border border-neutral-800 hover:border-neutral-700 text-neutral-400 hover:text-amber-400 flex items-center justify-center shrink-0 transition"
+                            title="Edit Practice Settings"
+                          >
+                            <Pencil className="w-3 h-3" />
+                          </button>
+
+                          {/* Skill Title & Personal Best in yellow underneath */}
+                          <div className="min-w-0 flex-1 pr-1">
+                            <div className="text-sm font-bold text-white truncate">{skill.title}</div>
+                            <div className="text-xs font-mono font-bold text-amber-400">
+                              Personal Best: {history.length > 0 ? skill.personalBestBpm : '???'}
                             </div>
                           </div>
 
-                          {/* Middle: Cyan Progress Graph on desktop / tablet screens */}
-                          <div className="shrink-0 hidden sm:block">
+                          {/* Middle-Right: Cyan Progress Graph visible in all viewports */}
+                          <div className="shrink-0 flex items-center">
                             <TealProgressGraph
                               history={history}
                               personalBestBpm={skill.personalBestBpm}
                               skillTitle={skill.title}
                               sticking={skill.sticking}
-                              width={95}
-                              height={28}
+                              width={88}
+                              height={24}
                               showLabels={false}
                             />
                           </div>
 
-                          {/* Right Controls */}
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            {/* Popped out Reorder Controls when Practice Order mode is on */}
-                            {isReorderingMode && (
-                              <div className="flex items-center gap-0.5 bg-neutral-900 border border-neutral-700/80 rounded-xl p-0.5 animate-in fade-in zoom-in-95 mr-1">
-                                <button
-                                  type="button"
-                                  disabled={index === 0}
-                                  onClick={() => {
-                                    const prevActive = activeSkills[index - 1];
-                                    if (prevActive) {
-                                      const prevGlobalIndex = skills.indexOf(prevActive);
-                                      onReorderSkill(globalIndex, prevGlobalIndex);
-                                    }
-                                  }}
-                                  className="p-1 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 disabled:opacity-20"
-                                  title="Move earlier in queue"
-                                >
-                                  <ArrowUp className="w-3.5 h-3.5" />
-                                </button>
-                                <button
-                                  type="button"
-                                  disabled={index === activeSkills.length - 1}
-                                  onClick={() => {
-                                    const nextActive = activeSkills[index + 1];
-                                    if (nextActive) {
-                                      const nextGlobalIndex = skills.indexOf(nextActive);
-                                      onReorderSkill(globalIndex, nextGlobalIndex);
-                                    }
-                                  }}
-                                  className="p-1 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 disabled:opacity-20"
-                                  title="Move later in queue"
-                                >
-                                  <ArrowDown className="w-3.5 h-3.5" />
-                                </button>
+                          {/* Right Controls: Play Button OR Draggable Grip in Practice Order mode */}
+                          <div className="shrink-0 flex items-center">
+                            {isReorderingMode ? (
+                              <div
+                                onPointerDown={(e) => handlePointerReorderStart(e, skill)}
+                                className="w-6.5 h-6.5 rounded-lg bg-neutral-900 border border-neutral-750 hover:border-amber-400/60 text-neutral-400 hover:text-amber-400 flex items-center justify-center cursor-grab active:cursor-grabbing hover:bg-neutral-800 transition select-none touch-none"
+                                title="Drag up or down to reorder"
+                              >
+                                <GripVertical className="w-3.5 h-3.5" />
                               </div>
-                            )}
-
-                            {/* Small Circular Yellow Play Button */}
-                            <button
-                              type="button"
-                              onClick={() => onSelectSkillToPractice(globalIndex)}
-                              className="w-7 h-7 rounded-full bg-amber-400 hover:bg-amber-300 active:scale-95 text-neutral-950 flex items-center justify-center shadow-md shadow-amber-400/25 transition shrink-0"
-                              title="Start Practice"
-                            >
-                              <Play className="w-3.5 h-3.5 fill-neutral-950 stroke-neutral-950" />
-                            </button>
-
-                            {/* Hibernate (zZz) */}
-                            <button
-                              type="button"
-                              onClick={() => onHibernateSkill(skill.id)}
-                              className="px-1.5 py-1 rounded-lg text-neutral-500 hover:text-indigo-300 hover:bg-indigo-500/10 font-mono text-[11px] font-bold tracking-tighter transition"
-                              title="Hibernate Skill (pause from daily routine)"
-                            >
-                              zZz
-                            </button>
-
-                            {/* Delete */}
-                            {skills.length > 1 && (
+                            ) : (
                               <button
                                 type="button"
-                                onClick={() => onDeleteSkill(skill.id)}
-                                className="p-1 text-neutral-500 hover:text-red-400 transition"
-                                title="Delete Skill"
+                                onClick={() => onSelectSkillToPractice(globalIndex)}
+                                className="w-6.5 h-6.5 rounded-full bg-amber-400 hover:bg-amber-300 active:scale-95 text-neutral-950 flex items-center justify-center shadow-md shadow-amber-400/25 transition shrink-0"
+                                title="Start Practice"
                               >
-                                <Trash2 className="w-4 h-4" />
+                                <Play className="w-3 h-3 fill-neutral-950 stroke-neutral-950 ml-0.5" />
                               </button>
                             )}
                           </div>
@@ -783,36 +857,86 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
                                     </div>
                                   </div>
 
-                                  {/* Row for Invert and Duplicate buttons */}
-                                  <div className="space-y-1.5 pt-0.5">
-                                    <div className="flex items-center gap-2">
+                                  {/* Quick Actions centered with individual dark grey outlines and pipe dividers */}
+                                  <div className="pt-2 border-t border-neutral-850">
+                                    <div className="text-[10px] uppercase font-mono tracking-wider text-neutral-400 mb-1.5 flex justify-between items-center px-1">
+                                      <span>Quick Actions</span>
+                                      {duplicateSuccessText && (
+                                        <span className="text-cyan-400 font-sans text-xs animate-in fade-in">
+                                          {duplicateSuccessText}
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    <div className="flex items-center justify-center gap-2 py-1">
+                                      {/* 1. Invert Button */}
                                       <button
                                         type="button"
                                         onClick={handleInvertEdit}
-                                        className="flex-1 py-2 px-3 bg-neutral-900 hover:bg-neutral-800 active:scale-[0.98] border border-neutral-750 hover:border-amber-400/50 text-neutral-200 rounded-xl font-medium text-xs flex items-center justify-center gap-1.5 transition shadow-sm"
+                                        className="p-2 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-neutral-400 hover:text-amber-400 active:scale-95 transition flex items-center justify-center shadow-sm"
                                         title="Invert Sticking (R ⇄ L) & update title"
                                       >
-                                        <ArrowLeftRight className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                                        <span>Invert (R ⇄ L)</span>
+                                        <ArrowLeftRight className="w-4 h-4" />
                                       </button>
 
+                                      {/* Pipe divider */}
+                                      <div className="h-4 w-[1px] bg-neutral-800" />
+
+                                      {/* 2. Duplicate Button */}
                                       <button
                                         type="button"
                                         onClick={handleDuplicateEdit}
                                         disabled={isDuplicating}
-                                        className="flex-1 py-2 px-3 bg-neutral-900 hover:bg-neutral-800 active:scale-[0.98] border border-neutral-750 hover:border-cyan-400/50 text-neutral-200 rounded-xl font-medium text-xs flex items-center justify-center gap-1.5 transition shadow-sm disabled:opacity-50"
+                                        className="p-2 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-neutral-400 hover:text-cyan-400 active:scale-95 transition flex items-center justify-center shadow-sm disabled:opacity-50"
                                         title="Duplicate this skill into the queue"
                                       >
-                                        <Copy className={`w-3.5 h-3.5 text-cyan-400 shrink-0 ${isDuplicating ? 'animate-spin' : ''}`} />
-                                        <span>Duplicate</span>
+                                        <Copy className={`w-4 h-4 ${isDuplicating ? 'animate-spin' : ''}`} />
                                       </button>
-                                    </div>
 
-                                    {duplicateSuccessText && (
-                                      <div className="text-[11px] text-cyan-300 font-mono text-center animate-in fade-in py-0.5">
-                                        {duplicateSuccessText}
-                                      </div>
-                                    )}
+                                      {/* Pipe divider */}
+                                      <div className="h-4 w-[1px] bg-neutral-800" />
+
+                                      {/* 3. Hibernate / Wake Button */}
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          onHibernateSkill(editingSkill.id);
+                                          setEditingSkill(null);
+                                        }}
+                                        className="p-2 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-neutral-400 hover:text-indigo-400 active:scale-95 transition flex items-center justify-center shadow-sm font-mono font-bold text-xs"
+                                        title={editingSkill.isHibernated ? 'Wake up skill' : 'Hibernate skill (zZz)'}
+                                      >
+                                        {editingSkill.isHibernated ? (
+                                          <Sun className="w-4 h-4 text-indigo-300" />
+                                        ) : (
+                                          <span className="tracking-tighter">zZz</span>
+                                        )}
+                                      </button>
+
+                                      {/* Pipe divider */}
+                                      <div className="h-4 w-[1px] bg-neutral-800" />
+
+                                      {/* 4. Delete Button with Tap Confirmation Safety */}
+                                      {confirmDeleteSkillId === editingSkill.id ? (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleDeleteWithConfirm(editingSkill.id)}
+                                          className="px-2.5 py-1.5 rounded-xl bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/50 text-[11px] font-bold flex items-center gap-1 animate-in fade-in shadow-sm"
+                                          title="Click again to permanently delete"
+                                        >
+                                          <span>Delete?</span>
+                                        </button>
+                                      ) : (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleDeleteWithConfirm(editingSkill.id)}
+                                          className="p-2 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-neutral-400 hover:text-red-400 active:scale-95 transition flex items-center justify-center shadow-sm"
+                                          title="Delete Skill"
+                                        >
+                                          <Trash2 className="w-4 h-4" />
+                                        </button>
+                                      )}
+                                    </div>
                                   </div>
 
                                   <div className="flex gap-2 pt-1">
@@ -838,74 +962,53 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
                           return (
                             <div
                               key={skill.id}
-                              className="bg-neutral-950/40 border border-neutral-800/50 rounded-2xl p-3 flex items-center justify-between gap-3 opacity-75 hover:opacity-100 transition"
+                              className="bg-neutral-950/40 border border-neutral-800/50 rounded-2xl p-2.5 sm:p-3 flex items-center justify-between gap-2.5 opacity-75 hover:opacity-100 transition"
                             >
-                              <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                                <button
-                                  type="button"
-                                  onClick={() => handleOpenEdit(skill)}
-                                  className="w-7 h-7 rounded-lg bg-neutral-850 hover:bg-neutral-800 border border-neutral-800 hover:border-neutral-700 text-neutral-400 hover:text-amber-400 flex items-center justify-center shrink-0 transition"
-                                  title="Edit Practice Settings"
-                                >
-                                  <Pencil className="w-3.5 h-3.5" />
-                                </button>
-                                <div className="min-w-0 pr-2">
-                                  <div className="text-sm font-bold text-neutral-300 truncate">{skill.title}</div>
-                                  <div className="text-xs font-mono font-bold text-amber-400/80">
-                                    Personal Best: {history.length > 0 ? skill.personalBestBpm : '???'}
-                                  </div>
-                                  {/* Cyan Progress Chart below Personal Best ONLY on mobile */}
-                                  <div className="mt-1.5 opacity-75 block sm:hidden">
-                                    <TealProgressGraph
-                                      history={history}
-                                      personalBestBpm={skill.personalBestBpm}
-                                      skillTitle={skill.title}
-                                      sticking={skill.sticking}
-                                      width={100}
-                                      height={26}
-                                      showLabels={false}
-                                    />
-                                  </div>
+                              {/* Left: Compact Pencil button to edit */}
+                              <button
+                                type="button"
+                                onClick={() => handleOpenEdit(skill)}
+                                className="w-6.5 h-6.5 rounded-lg bg-neutral-850 hover:bg-neutral-800 border border-neutral-800 hover:border-neutral-700 text-neutral-400 hover:text-amber-400 flex items-center justify-center shrink-0 transition"
+                                title="Edit Practice Settings"
+                              >
+                                <Pencil className="w-3 h-3" />
+                              </button>
+
+                              {/* Title & Personal Best in yellow underneath */}
+                              <div className="min-w-0 flex-1 pr-1">
+                                <div className="text-sm font-bold text-neutral-300 truncate">{skill.title}</div>
+                                <div className="text-xs font-mono font-bold text-amber-400/80">
+                                  Personal Best: {history.length > 0 ? skill.personalBestBpm : '???'}
                                 </div>
                               </div>
 
-                              {/* Middle: Cyan Progress Graph on desktop / tablet screens */}
-                              <div className="shrink-0 hidden sm:block opacity-75">
+                              {/* Middle-Right: Cyan Progress Graph visible in all viewports */}
+                              <div className="shrink-0 flex items-center opacity-75">
                                 <TealProgressGraph
                                   history={history}
                                   personalBestBpm={skill.personalBestBpm}
                                   skillTitle={skill.title}
                                   sticking={skill.sticking}
-                                  width={95}
-                                  height={28}
+                                  width={88}
+                                  height={24}
                                   showLabels={false}
                                 />
                               </div>
 
-                            <div className="flex items-center gap-1">
-                              {/* Wake Up */}
-                              <button
-                                type="button"
-                                onClick={() => onHibernateSkill(skill.id)}
-                                className="px-2.5 py-1 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 text-xs font-semibold flex items-center gap-1 border border-indigo-500/30"
-                                title="Wake Up — return to active queue"
-                              >
-                                <Sun className="w-3 h-3" />
-                                <span>Wake</span>
-                              </button>
-
-                              {/* Delete */}
-                              <button
-                                type="button"
-                                onClick={() => onDeleteSkill(skill.id)}
-                                className="p-1 text-neutral-600 hover:text-red-400 ml-1"
-                                title="Delete Skill"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
+                              {/* Right: Wake Button */}
+                              <div className="shrink-0 flex items-center">
+                                <button
+                                  type="button"
+                                  onClick={() => onHibernateSkill(skill.id)}
+                                  className="px-2 py-1 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 text-xs font-semibold flex items-center gap-1 border border-indigo-500/30 transition shadow-sm"
+                                  title="Wake Up — return to active queue"
+                                >
+                                  <Sun className="w-3.5 h-3.5" />
+                                  <span>Wake</span>
+                                </button>
+                              </div>
                             </div>
-                          </div>
-                        );
+                          );
                       })}
                       </div>
                     )}
