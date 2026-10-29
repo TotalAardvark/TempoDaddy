@@ -16,12 +16,15 @@ import {
   Check,
   Pencil,
   Cloud,
+  Copy,
+  ArrowLeftRight,
 } from 'lucide-react';
 import type { Skill, PresetSkill, Subdivision } from '../types';
 import { PRESET_SKILLS } from '../data/initialSkills';
 import { storageManager } from '../storage/storageManager';
 import { TealProgressGraph } from './TealProgressGraph';
 import { SyncModal } from './SyncModal';
+import { invertSticking, invertTitle } from '../utils/stickingUtils';
 
 interface SkillLibraryModalProps {
   isOpen: boolean;
@@ -29,6 +32,17 @@ interface SkillLibraryModalProps {
   onClose: () => void;
   onSelectSkillToPractice: (index: number) => void;
   onAddSkill: (newSkill: Omit<Skill, 'id' | 'createdAt' | 'order'>) => void;
+  onDuplicateSkill?: (
+    sourceSkillId: string,
+    currentFormFields?: {
+      title?: string;
+      sticking?: string;
+      notes?: string;
+      personalBestBpm?: number;
+      subdivision?: Subdivision;
+      isTriplet?: boolean;
+    }
+  ) => Skill | null;
   onUpdateSkill?: (id: string, updatedFields: Partial<Skill>) => void;
   onDeleteSkill: (id: string) => void;
   onReorderSkill: (fromIndex: number, toIndex: number) => void;
@@ -44,6 +58,7 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
   onClose,
   onSelectSkillToPractice,
   onAddSkill,
+  onDuplicateSkill,
   onUpdateSkill,
   onDeleteSkill,
   onReorderSkill,
@@ -74,6 +89,10 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
   const [customPb, setCustomPb] = useState<number | ''>(40);
   const [customSubdivision, setCustomSubdivision] = useState<Subdivision>('1/8');
   const [customIsTriplet, setCustomIsTriplet] = useState(false);
+
+  // Duplication animation feedback state
+  const [isDuplicating, setIsDuplicating] = useState(false);
+  const [duplicateSuccessText, setDuplicateSuccessText] = useState<string | null>(null);
 
   // Tap tempo handling
   const customTapTimesRef = useRef<number[]>([]);
@@ -186,6 +205,55 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
     }
 
     setEditingSkill(null);
+  };
+
+  const handleInvertEdit = () => {
+    setEditTitle((prev) => invertTitle(prev));
+    if (editSticking) {
+      setEditSticking((prev) => invertSticking(prev));
+    }
+  };
+
+  const handleInvertCustom = () => {
+    setCustomTitle((prev) => invertTitle(prev));
+    if (customSticking) {
+      setCustomSticking((prev) => invertSticking(prev));
+    }
+  };
+
+  const handleDuplicateEdit = () => {
+    if (!editingSkill || !onDuplicateSkill || isDuplicating) return;
+
+    setIsDuplicating(true);
+    setDuplicateSuccessText('Duplicating to Queue...');
+
+    // Quick visual cue / script animation
+    setTimeout(() => {
+      const duplicated = onDuplicateSkill(editingSkill.id, {
+        title: editTitle.trim() ? `${editTitle.trim()} (Copy)` : `${editingSkill.title} (Copy)`,
+        sticking: editSticking.trim() || undefined,
+        notes: editNotes.trim() || undefined,
+        personalBestBpm: editPb,
+        subdivision: editSubdivision,
+        isTriplet: editIsTriplet,
+      });
+
+      if (duplicated) {
+        setDuplicateSuccessText('Created & Switched to Duplicate!');
+        setEditingSkill(duplicated);
+        setEditTitle(duplicated.title);
+        setEditSticking(duplicated.sticking || '');
+        setEditNotes(duplicated.notes || '');
+        setEditPb(duplicated.personalBestBpm || 80);
+        setEditSubdivision(duplicated.subdivision || '1/16');
+        setEditIsTriplet(!!duplicated.isTriplet);
+      }
+
+      setTimeout(() => {
+        setIsDuplicating(false);
+        setDuplicateSuccessText(null);
+      }, 700);
+    }, 300);
   };
 
   const handleSaveCustom = (e: React.FormEvent) => {
@@ -393,6 +461,38 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
                                     />
                                   </div>
                                 </div>
+                              </div>
+
+                              {/* Row for Invert and Duplicate buttons */}
+                              <div className="space-y-1.5 pt-0.5">
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={handleInvertEdit}
+                                    className="flex-1 py-2 px-3 bg-neutral-900 hover:bg-neutral-800 active:scale-[0.98] border border-neutral-750 hover:border-amber-400/50 text-neutral-200 rounded-xl font-medium text-xs flex items-center justify-center gap-1.5 transition shadow-sm"
+                                    title="Invert Sticking (R ⇄ L) & update title"
+                                  >
+                                    <ArrowLeftRight className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                                    <span>Invert (R ⇄ L)</span>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={handleDuplicateEdit}
+                                    disabled={isDuplicating}
+                                    className="flex-1 py-2 px-3 bg-neutral-900 hover:bg-neutral-800 active:scale-[0.98] border border-neutral-750 hover:border-cyan-400/50 text-neutral-200 rounded-xl font-medium text-xs flex items-center justify-center gap-1.5 transition shadow-sm disabled:opacity-50"
+                                    title="Duplicate this skill into the queue"
+                                  >
+                                    <Copy className={`w-3.5 h-3.5 text-cyan-400 shrink-0 ${isDuplicating ? 'animate-spin' : ''}`} />
+                                    <span>Duplicate</span>
+                                  </button>
+                                </div>
+
+                                {duplicateSuccessText && (
+                                  <div className="text-[11px] text-cyan-300 font-mono text-center animate-in fade-in py-0.5">
+                                    {duplicateSuccessText}
+                                  </div>
+                                )}
                               </div>
 
                               <div className="flex gap-2 pt-1">
@@ -671,6 +771,38 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
                                     </div>
                                   </div>
 
+                                  {/* Row for Invert and Duplicate buttons */}
+                                  <div className="space-y-1.5 pt-0.5">
+                                    <div className="flex items-center gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={handleInvertEdit}
+                                        className="flex-1 py-2 px-3 bg-neutral-900 hover:bg-neutral-800 active:scale-[0.98] border border-neutral-750 hover:border-amber-400/50 text-neutral-200 rounded-xl font-medium text-xs flex items-center justify-center gap-1.5 transition shadow-sm"
+                                        title="Invert Sticking (R ⇄ L) & update title"
+                                      >
+                                        <ArrowLeftRight className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                                        <span>Invert (R ⇄ L)</span>
+                                      </button>
+
+                                      <button
+                                        type="button"
+                                        onClick={handleDuplicateEdit}
+                                        disabled={isDuplicating}
+                                        className="flex-1 py-2 px-3 bg-neutral-900 hover:bg-neutral-800 active:scale-[0.98] border border-neutral-750 hover:border-cyan-400/50 text-neutral-200 rounded-xl font-medium text-xs flex items-center justify-center gap-1.5 transition shadow-sm disabled:opacity-50"
+                                        title="Duplicate this skill into the queue"
+                                      >
+                                        <Copy className={`w-3.5 h-3.5 text-cyan-400 shrink-0 ${isDuplicating ? 'animate-spin' : ''}`} />
+                                        <span>Duplicate</span>
+                                      </button>
+                                    </div>
+
+                                    {duplicateSuccessText && (
+                                      <div className="text-[11px] text-cyan-300 font-mono text-center animate-in fade-in py-0.5">
+                                        {duplicateSuccessText}
+                                      </div>
+                                    )}
+                                  </div>
+
                                   <div className="flex gap-2 pt-1">
                                     <button
                                       type="button"
@@ -940,6 +1072,19 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
                         />
                       </div>
                     </div>
+                  </div>
+
+                  {/* Row for Invert button */}
+                  <div className="pt-0.5">
+                    <button
+                      type="button"
+                      onClick={handleInvertCustom}
+                      className="w-full py-2 px-3 bg-neutral-900 hover:bg-neutral-800 active:scale-[0.98] border border-neutral-750 hover:border-amber-400/50 text-neutral-200 rounded-xl font-medium text-xs flex items-center justify-center gap-1.5 transition shadow-sm"
+                      title="Invert Sticking (R ⇄ L) & update title"
+                    >
+                      <ArrowLeftRight className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                      <span>Invert (R ⇄ L)</span>
+                    </button>
                   </div>
 
                   <button

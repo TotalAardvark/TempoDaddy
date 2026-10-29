@@ -547,7 +547,7 @@ export default function App() {
   };
 
   // Skill Library management actions
-  const handleAddSkill = (newSkillData: Omit<Skill, 'id' | 'createdAt' | 'order'>) => {
+  const handleAddSkill = (newSkillData: Omit<Skill, 'id' | 'createdAt' | 'order'>): Skill => {
     const newSkill: Skill = {
       ...newSkillData,
       id: 'skill-' + Date.now(),
@@ -558,6 +558,43 @@ export default function App() {
     setSkills(updated);
     storageManager.saveSkills(updated);
     triggerDebouncedCloudSync();
+    return newSkill;
+  };
+
+  const handleDuplicateSkill = (sourceSkillId: string, currentFormFields?: {
+    title?: string;
+    sticking?: string;
+    notes?: string;
+    personalBestBpm?: number;
+    subdivision?: Subdivision;
+    isTriplet?: boolean;
+  }): Skill | null => {
+    const index = skills.findIndex((s) => s.id === sourceSkillId);
+    if (index === -1) return null;
+
+    const source = skills[index];
+    const newSkill: Skill = {
+      ...source,
+      ...(currentFormFields?.title !== undefined && { title: currentFormFields.title }),
+      ...(currentFormFields?.sticking !== undefined && { sticking: currentFormFields.sticking }),
+      ...(currentFormFields?.notes !== undefined && { notes: currentFormFields.notes }),
+      ...(currentFormFields?.personalBestBpm !== undefined && { personalBestBpm: currentFormFields.personalBestBpm }),
+      ...(currentFormFields?.subdivision !== undefined && { subdivision: currentFormFields.subdivision }),
+      ...(currentFormFields?.isTriplet !== undefined && { isTriplet: currentFormFields.isTriplet }),
+      id: 'skill-' + Date.now(),
+      createdAt: new Date().toISOString(),
+    };
+
+    // Insert directly after the source skill and normalize orders
+    const updated = [...skills];
+    updated.splice(index + 1, 0, newSkill);
+    const reordered = updated.map((s, idx) => ({ ...s, order: idx }));
+
+    setSkills(reordered);
+    storageManager.saveSkills(reordered);
+    triggerDebouncedCloudSync();
+
+    return newSkill;
   };
 
   const handleUpdateSkill = (id: string, updatedFields: Partial<Skill>) => {
@@ -775,6 +812,7 @@ export default function App() {
             handleSelectSkillToPractice(skill);
           }}
           onAddSkill={handleAddSkill}
+          onDuplicateSkill={handleDuplicateSkill}
           onUpdateSkill={handleUpdateSkill}
           onDeleteSkill={handleDeleteSkill}
           onReorderSkill={handleReorderSkill}
@@ -818,6 +856,7 @@ export default function App() {
           onClose={() => setIsLibraryOpen(false)}
           onSelectSkillToPractice={handleSelectSkillToPractice}
           onAddSkill={handleAddSkill}
+          onDuplicateSkill={handleDuplicateSkill}
           onUpdateSkill={handleUpdateSkill}
           onDeleteSkill={handleDeleteSkill}
           onReorderSkill={handleReorderSkill}
@@ -1097,6 +1136,7 @@ export default function App() {
         onClose={() => setIsLibraryOpen(false)}
         onSelectSkillToPractice={handleSelectSkillToPractice}
         onAddSkill={handleAddSkill}
+        onDuplicateSkill={handleDuplicateSkill}
         onUpdateSkill={handleUpdateSkill}
         onDeleteSkill={handleDeleteSkill}
         onReorderSkill={handleReorderSkill}
