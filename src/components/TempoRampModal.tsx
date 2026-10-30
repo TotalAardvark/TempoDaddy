@@ -10,24 +10,50 @@ interface TempoRampModalProps {
   onSave: (newSettings: TempoRampSettings) => void;
 }
 
+interface DraftRampState {
+  startPercent: number | '';
+  targetPercent: number | '';
+  measures: number | '';
+  enabled: boolean;
+}
+
 export const TempoRampModal: React.FC<TempoRampModalProps> = ({
   isOpen,
   onClose,
   settings,
   onSave,
 }) => {
-  const [draft, setDraft] = useState<TempoRampSettings>(settings);
+  const [draft, setDraft] = useState<DraftRampState>({
+    startPercent: settings.startPercent,
+    targetPercent: settings.targetPercent,
+    measures: settings.measures,
+    enabled: settings.enabled,
+  });
 
   useEffect(() => {
     if (isOpen) {
-      setDraft(settings);
+      setDraft({
+        startPercent: settings.startPercent,
+        targetPercent: settings.targetPercent,
+        measures: settings.measures,
+        enabled: settings.enabled,
+      });
     }
   }, [isOpen, settings]);
 
   if (!isOpen) return null;
 
   const handleSave = () => {
-    onSave(draft);
+    const finalStart = draft.startPercent === '' ? 100 : Number(draft.startPercent);
+    const finalTarget = draft.targetPercent === '' ? 100 : Number(draft.targetPercent);
+    const finalMeasures = draft.measures === '' ? 16 : Number(draft.measures);
+
+    onSave({
+      startPercent: Math.max(30, Math.min(150, isNaN(finalStart) ? 100 : finalStart)),
+      targetPercent: Math.max(30, Math.min(150, isNaN(finalTarget) ? 100 : finalTarget)),
+      measures: Math.max(1, Math.min(128, isNaN(finalMeasures) ? 16 : finalMeasures)),
+      enabled: draft.enabled,
+    });
     onClose();
   };
 
@@ -74,16 +100,18 @@ export const TempoRampModal: React.FC<TempoRampModalProps> = ({
             <div className="flex items-center gap-1.5">
               <input
                 type="number"
-                min={40}
-                max={100}
+                min={30}
+                max={150}
+                placeholder="100"
                 value={draft.startPercent}
-                onChange={(e) =>
+                onChange={(e) => {
+                  const val = e.target.value;
                   setDraft((prev) => ({
                     ...prev,
-                    startPercent: Math.max(30, Math.min(120, Number(e.target.value) || 80)),
-                  }))
-                }
-                className="w-16 px-2 py-1 bg-neutral-900 border border-neutral-700/80 focus:border-amber-400 text-center text-sm font-bold text-white rounded-lg outline-none"
+                    startPercent: val === '' ? '' : Number(val),
+                  }));
+                }}
+                className="w-16 px-2 py-1 bg-neutral-900 border border-neutral-700/80 focus:border-amber-400 placeholder:text-neutral-500 text-center text-sm font-bold text-white rounded-lg outline-none"
               />
               <span className="text-xs text-amber-400 font-bold">% PB</span>
             </div>
@@ -95,16 +123,18 @@ export const TempoRampModal: React.FC<TempoRampModalProps> = ({
             <div className="flex items-center gap-1.5">
               <input
                 type="number"
-                min={50}
+                min={30}
                 max={150}
+                placeholder="100"
                 value={draft.targetPercent}
-                onChange={(e) =>
+                onChange={(e) => {
+                  const val = e.target.value;
                   setDraft((prev) => ({
                     ...prev,
-                    targetPercent: Math.max(40, Math.min(150, Number(e.target.value) || 90)),
-                  }))
-                }
-                className="w-16 px-2 py-1 bg-neutral-900 border border-neutral-700/80 focus:border-cyan-400 text-center text-sm font-bold text-white rounded-lg outline-none"
+                    targetPercent: val === '' ? '' : Number(val),
+                  }));
+                }}
+                className="w-16 px-2 py-1 bg-neutral-900 border border-neutral-700/80 focus:border-cyan-400 placeholder:text-neutral-500 text-center text-sm font-bold text-white rounded-lg outline-none"
               />
               <span className="text-xs text-cyan-400 font-bold">% PB</span>
             </div>
@@ -118,14 +148,16 @@ export const TempoRampModal: React.FC<TempoRampModalProps> = ({
                 type="number"
                 min={1}
                 max={128}
+                placeholder="16"
                 value={draft.measures}
-                onChange={(e) =>
+                onChange={(e) => {
+                  const val = e.target.value;
                   setDraft((prev) => ({
                     ...prev,
-                    measures: Math.max(1, Math.min(128, Number(e.target.value) || 16)),
-                  }))
-                }
-                className="w-16 px-2 py-1 bg-neutral-900 border border-neutral-700/80 focus:border-neutral-500 text-center text-sm font-bold text-white rounded-lg outline-none"
+                    measures: val === '' ? '' : Number(val),
+                  }));
+                }}
+                className="w-16 px-2 py-1 bg-neutral-900 border border-neutral-700/80 focus:border-neutral-500 placeholder:text-neutral-500 text-center text-sm font-bold text-white rounded-lg outline-none"
               />
               <span className="text-xs text-neutral-400 font-bold">measures</span>
             </div>
@@ -134,7 +166,7 @@ export const TempoRampModal: React.FC<TempoRampModalProps> = ({
 
         {/* Note on global setting & beats calculation */}
         <div className="flex items-center justify-between text-[11px] text-neutral-500 font-mono">
-          <span>{draft.measures * 4} quarter beats ramp</span>
+          <span>{((draft.measures === '' ? 16 : Number(draft.measures)) || 16) * 4} quarter beats ramp</span>
           <span>Applied globally</span>
         </div>
 

@@ -25,6 +25,7 @@ Tracking file for feature requests, ideas, and backlog tasks.
 | FR-009 | Onboarding experience design for new users | P3 | C2 | Open |
 | FR-010 | Text size accessibility (Large Text mode in settings) | P3 | C1 | Open |
 | FR-011 | Import/export skills or workouts via QR code | P2 | C1 | Open |
+| FR-015 | Metronome sound uneven in 16th notes | P1 | C1 | Open |
 | FR-002 | Keyboard shortcuts helper on footer | P0 | C1 | Open |
 | FR-005 | Gamified / motivational rework for Skill Queue naming & labels | P0 | C1 | Open |
 | FR-006 | Workout export / import / sharing & browser | P0 | C3 | Open |
@@ -81,7 +82,12 @@ Tracking file for feature requests, ideas, and backlog tasks.
 ---
 
 ### Priority: P1 (Medium-Low)
-*(No open items currently)*
+
+#### [FR-015] Metronome Sound Uneven in 16th Notes
+- **Priority**: P1 (Medium-Low)
+- **Complexity**: C1 (Medium-Low)
+- **Status**: Open
+- **Description**: Metronome audio playback/scheduling exhibits uneven timing/feel when playing 16th note subdivisions. Investigate lookahead scheduler interval, Web Audio API oscillator scheduling, and subdivision timing in `src/audio/metronomeEngine.ts`.
 
 ---
 
