@@ -31,6 +31,14 @@ export interface Skill {
   notes?: string;
 }
 
+export interface Playlist {
+  id: string;
+  name: string;
+  skillIds: string[];
+  createdAt: string;
+  lastPlayedAt?: string;
+}
+
 export interface PresetSkill {
   title: string;
   category: SkillCategory;
@@ -47,4 +55,3 @@ export interface TempoRampSettings {
   measures: number; // e.g. 16 measures (64 beats)
   enabled: boolean;
 }
-

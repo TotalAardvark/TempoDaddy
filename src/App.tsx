@@ -10,7 +10,7 @@ import {
   Volume2,
   Trophy,
 } from 'lucide-react';
-import type { Skill, Subdivision, PracticeSessionLog, TempoRampSettings, MetronomeTimbre, PbDisplayRange } from './types';
+import type { Skill, Playlist, Subdivision, PracticeSessionLog, TempoRampSettings, MetronomeTimbre, PbDisplayRange } from './types';
 import { MetronomeEngine, type MetronomeTickEvent } from './audio/metronomeEngine';
 import { storageManager } from './storage/storageManager';
 import {
@@ -26,6 +26,7 @@ import { ConfirmSessionModal } from './components/ConfirmSessionModal';
 import { ColdStartScreen } from './components/ColdStartScreen';
 import { RoutineCompleteScreen } from './components/RoutineCompleteScreen';
 import { SkillLibraryModal } from './components/SkillLibraryModal';
+import { PlaylistsModal } from './components/PlaylistsModal';
 import { StickingDisplay } from './components/StickingDisplay';
 import { ExitPromptModal } from './components/ExitPromptModal';
 import { SkillNotesDialog } from './components/SkillNotesDialog';
@@ -72,11 +73,32 @@ export default function App() {
     return localStorage.getItem('tempo_coach_random_order') === 'true';
   });
 
+  // Playlists State
+  const [playlists, setPlaylists] = useState<Playlist[]>(() => storageManager.getPlaylists());
+  const [activePlaylistId, setActivePlaylistId] = useState<string>(() => storageManager.getActivePlaylistId());
+  const [isPlaylistsModalOpen, setIsPlaylistsModalOpen] = useState<boolean>(false);
+
   // Active (non-hibernated) skills for the daily practice queue
   const [sessionSkillOrder, setSessionSkillOrder] = useState<string[]>([]);
 
+  // Filter skills for active playlist
+  const activePlaylist = useMemo(() => {
+    return playlists.find((p) => p.id === activePlaylistId) || playlists[0];
+  }, [playlists, activePlaylistId]);
+
+  const playlistSkills = useMemo(() => {
+    if (!activePlaylist) return skills;
+    const skillMap = new Map(skills.map((s) => [s.id, s]));
+    const list: Skill[] = [];
+    activePlaylist.skillIds.forEach((id) => {
+      const s = skillMap.get(id);
+      if (s) list.push(s);
+    });
+    return list;
+  }, [skills, activePlaylist]);
+
   const activeSkills = useMemo(() => {
-    const nonHibernated = skills.filter((s) => !s.isHibernated);
+    const nonHibernated = playlistSkills.filter((s) => !s.isHibernated);
     if (sessionSkillOrder.length > 0) {
       const map = new Map(nonHibernated.map((s) => [s.id, s]));
       const ordered: Skill[] = [];
@@ -92,7 +114,7 @@ export default function App() {
       return ordered;
     }
     return nonHibernated;
-  }, [skills, sessionSkillOrder]);
+  }, [playlistSkills, sessionSkillOrder]);
 
   // Active skill in view
   const currentSkill: Skill | undefined = activeSkills[activeSkillIndex] || activeSkills[0] || skills[0];
@@ -557,6 +579,13 @@ export default function App() {
     const updated = [...skills, newSkill];
     setSkills(updated);
     storageManager.saveSkills(updated);
+
+    // Also attach to active playlist
+    if (activePlaylistId) {
+      storageManager.addSkillToPlaylist(newSkill.id, activePlaylistId);
+      setPlaylists(storageManager.getPlaylists());
+    }
+
     triggerDebouncedCloudSync();
     return newSkill;
   };
@@ -592,6 +621,23 @@ export default function App() {
 
     setSkills(reordered);
     storageManager.saveSkills(reordered);
+
+    // Also attach to active playlist directly after the source skill in the playlist's skillIds
+    if (activePlaylistId) {
+      const storedPlaylists = storageManager.getPlaylists();
+      const currentPl = storedPlaylists.find((p) => p.id === activePlaylistId);
+      if (currentPl) {
+        const plIdx = currentPl.skillIds.indexOf(sourceSkillId);
+        if (plIdx !== -1) {
+          currentPl.skillIds.splice(plIdx + 1, 0, newSkill.id);
+        } else {
+          currentPl.skillIds.push(newSkill.id);
+        }
+        storageManager.savePlaylists(storedPlaylists);
+        setPlaylists(storedPlaylists);
+      }
+    }
+
     triggerDebouncedCloudSync();
 
     return newSkill;
@@ -617,6 +663,21 @@ export default function App() {
     const updatedActive = updated.filter((s) => !s.isHibernated);
     setSkills(updated);
     storageManager.saveSkills(updated);
+
+    // Also remove from all playlists that contained it
+    const storedPlaylists = storageManager.getPlaylists();
+    let playlistsChanged = false;
+    storedPlaylists.forEach((pl) => {
+      if (pl.skillIds.includes(id)) {
+        pl.skillIds = pl.skillIds.filter((sid) => sid !== id);
+        playlistsChanged = true;
+      }
+    });
+    if (playlistsChanged) {
+      storageManager.savePlaylists(storedPlaylists);
+      setPlaylists(storedPlaylists);
+    }
+
     triggerDebouncedCloudSync();
     if (activeSkillIndex >= updatedActive.length) {
       setActiveSkillIndex(Math.max(0, updatedActive.length - 1));
@@ -674,17 +735,18 @@ export default function App() {
   }, [pbDisplayRange, pbStats]);
 
   const handleReorderSkill = (fromIndex: number, toIndex: number) => {
-    if (toIndex < 0 || toIndex >= skills.length) return;
-    const copy = [...skills];
-    const [moved] = copy.splice(fromIndex, 1);
-    copy.splice(toIndex, 0, moved);
-    setSkills(copy);
-    storageManager.saveSkills(copy);
+    if (!activePlaylist) return;
+    const currentIds = [...activePlaylist.skillIds];
+    if (fromIndex < 0 || fromIndex >= currentIds.length || toIndex < 0 || toIndex >= currentIds.length) return;
+    const [movedId] = currentIds.splice(fromIndex, 1);
+    currentIds.splice(toIndex, 0, movedId);
+    storageManager.updatePlaylist(activePlaylist.id, { skillIds: currentIds });
+    setPlaylists(storageManager.getPlaylists());
     triggerDebouncedCloudSync();
   };
 
-  const handleSelectSkillToPractice = (globalIndex: number) => {
-    const selectedSkill = skills[globalIndex];
+  const handleSelectSkillToPractice = (indexInPlaylist: number) => {
+    const selectedSkill = playlistSkills[indexInPlaylist];
     if (!selectedSkill) return;
     const activeIdx = activeSkills.findIndex((s) => s.id === selectedSkill.id);
     setActiveSkillIndex(activeIdx !== -1 ? activeIdx : 0);
@@ -771,16 +833,87 @@ export default function App() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, []);
 
+  // Playlist Management Handlers
+  const handleSelectPlaylist = (id: string) => {
+    setActivePlaylistId(id);
+    storageManager.setActivePlaylistId(id);
+    setActiveSkillIndex(0);
+    setCompletedSkillIds(new Set());
+    const pl = playlists.find((p) => p.id === id);
+    if (pl && pl.skillIds.length > 0) {
+      const firstSkill = skills.find((s) => s.id === pl.skillIds[0] && !s.isHibernated) || skills.find((s) => s.id === pl.skillIds[0]);
+      if (firstSkill) {
+        loadSkill(firstSkill, false);
+      }
+    }
+  };
+
+  const handleCreatePlaylist = (name: string) => {
+    const newPl = storageManager.createPlaylist(name);
+    setPlaylists(storageManager.getPlaylists());
+    setActivePlaylistId(newPl.id);
+    setActiveSkillIndex(0);
+    setCompletedSkillIds(new Set());
+    triggerDebouncedCloudSync();
+  };
+
+  const handleRenamePlaylist = (id: string, newName: string) => {
+    const updated = storageManager.updatePlaylist(id, { name: newName });
+    setPlaylists(updated);
+    triggerDebouncedCloudSync();
+  };
+
+  const handleDuplicatePlaylist = (id: string) => {
+    const source = playlists.find((p) => p.id === id);
+    if (!source) return;
+    const duplicated = storageManager.createPlaylist(`${source.name} (Copy)`);
+    storageManager.updatePlaylist(duplicated.id, { skillIds: [...source.skillIds] });
+    setPlaylists(storageManager.getPlaylists());
+    setActivePlaylistId(duplicated.id);
+    triggerDebouncedCloudSync();
+  };
+
+  const handleDeletePlaylist = (id: string) => {
+    const { remainingPlaylists } = storageManager.deletePlaylist(id);
+    setPlaylists(remainingPlaylists);
+    setSkills(storageManager.getSkills());
+    const nextActive = storageManager.getActivePlaylistId();
+    setActivePlaylistId(nextActive);
+    setActiveSkillIndex(0);
+    triggerDebouncedCloudSync();
+  };
+
+  const handleToggleSkillInPlaylist = (skillId: string, playlistId: string) => {
+    const pl = playlists.find((p) => p.id === playlistId);
+    if (!pl) return;
+    if (pl.skillIds.includes(skillId)) {
+      storageManager.removeSkillFromPlaylist(skillId, playlistId);
+    } else {
+      storageManager.addSkillToPlaylist(skillId, playlistId);
+    }
+    setPlaylists(storageManager.getPlaylists());
+    triggerDebouncedCloudSync();
+  };
+
+  const handleCreatePlaylistWithSkill = (playlistName: string, skillId: string) => {
+    const newPl = storageManager.createPlaylist(playlistName);
+    storageManager.addSkillToPlaylist(skillId, newPl.id);
+    setPlaylists(storageManager.getPlaylists());
+    triggerDebouncedCloudSync();
+  };
+
   // History for active skill
   const currentSkillHistory = useMemo(() => {
     return currentSkill ? storageManager.getSkillHistory(currentSkill.id) : [];
   }, [currentSkill, todaySessions]);
 
   // Top skill in active routine (always Up First)
-  const topSkill = (skills.filter((s) => !s.isHibernated))[0] || skills[0] || null;
+  const topSkill = (playlistSkills.filter((s) => !s.isHibernated))[0] || null;
   const topSkillHistory = useMemo(() => {
     return topSkill ? storageManager.getSkillHistory(topSkill.id) : [];
   }, [topSkill, todaySessions]);
+
+  const [initialOpenAddSkillInLibrary, setInitialOpenAddSkillInLibrary] = useState(false);
 
   // SCREEN 1: Cold start screen on first visit
   if (isColdStart) {
@@ -801,12 +934,28 @@ export default function App() {
             localStorage.setItem('tempo_coach_random_order', String(val));
           }}
           onStart={handleColdStart}
-          onOpenLibrary={() => setIsLibraryOpen(true)}
+          onOpenLibrary={() => {
+            setInitialOpenAddSkillInLibrary(false);
+            setIsLibraryOpen(true);
+          }}
+          onOpenAddSkill={() => {
+            setInitialOpenAddSkillInLibrary(true);
+            setIsLibraryOpen(true);
+          }}
         />
         <SkillLibraryModal
           isOpen={isLibraryOpen}
-          skills={skills}
-          onClose={() => setIsLibraryOpen(false)}
+          initialOpenAddSkill={initialOpenAddSkillInLibrary}
+          skills={playlistSkills}
+          playlists={playlists}
+          activePlaylistId={activePlaylistId}
+          onOpenPlaylistsModal={() => setIsPlaylistsModalOpen(true)}
+          onToggleSkillInPlaylist={handleToggleSkillInPlaylist}
+          onCreatePlaylistWithSkill={handleCreatePlaylistWithSkill}
+          onClose={() => {
+            setIsLibraryOpen(false);
+            setInitialOpenAddSkillInLibrary(false);
+          }}
           onSelectSkillToPractice={(skill) => {
             setIsColdStart(false);
             handleSelectSkillToPractice(skill);
@@ -821,6 +970,18 @@ export default function App() {
           onHibernateSkill={handleHibernateSkill}
           onDataReloaded={handleReloadAllData}
         />
+        <PlaylistsModal
+          isOpen={isPlaylistsModalOpen}
+          onClose={() => setIsPlaylistsModalOpen(false)}
+          playlists={playlists}
+          activePlaylistId={activePlaylistId}
+          skills={skills}
+          onSelectPlaylist={handleSelectPlaylist}
+          onCreatePlaylist={handleCreatePlaylist}
+          onRenamePlaylist={handleRenamePlaylist}
+          onDuplicatePlaylist={handleDuplicatePlaylist}
+          onDeletePlaylist={handleDeletePlaylist}
+        />
       </>
     );
   }
@@ -830,7 +991,7 @@ export default function App() {
     return (
       <>
         <RoutineCompleteScreen
-          skills={skills}
+          skills={playlistSkills}
           todaySessions={todaySessions}
           completedSkillIds={completedSkillIds}
           streak={streak}
@@ -852,7 +1013,12 @@ export default function App() {
         />
         <SkillLibraryModal
           isOpen={isLibraryOpen}
-          skills={skills}
+          skills={playlistSkills}
+          playlists={playlists}
+          activePlaylistId={activePlaylistId}
+          onOpenPlaylistsModal={() => setIsPlaylistsModalOpen(true)}
+          onToggleSkillInPlaylist={handleToggleSkillInPlaylist}
+          onCreatePlaylistWithSkill={handleCreatePlaylistWithSkill}
           onClose={() => setIsLibraryOpen(false)}
           onSelectSkillToPractice={handleSelectSkillToPractice}
           onAddSkill={handleAddSkill}
@@ -864,6 +1030,18 @@ export default function App() {
           onImportData={handleImportData}
           onHibernateSkill={handleHibernateSkill}
           onDataReloaded={handleReloadAllData}
+        />
+        <PlaylistsModal
+          isOpen={isPlaylistsModalOpen}
+          onClose={() => setIsPlaylistsModalOpen(false)}
+          playlists={playlists}
+          activePlaylistId={activePlaylistId}
+          skills={skills}
+          onSelectPlaylist={handleSelectPlaylist}
+          onCreatePlaylist={handleCreatePlaylist}
+          onRenamePlaylist={handleRenamePlaylist}
+          onDuplicatePlaylist={handleDuplicatePlaylist}
+          onDeletePlaylist={handleDeletePlaylist}
         />
       </>
     );
@@ -1132,7 +1310,12 @@ export default function App() {
       {/* Skills Library & Routine Management Modal */}
       <SkillLibraryModal
         isOpen={isLibraryOpen}
-        skills={skills}
+        skills={playlistSkills}
+        playlists={playlists}
+        activePlaylistId={activePlaylistId}
+        onOpenPlaylistsModal={() => setIsPlaylistsModalOpen(true)}
+        onToggleSkillInPlaylist={handleToggleSkillInPlaylist}
+        onCreatePlaylistWithSkill={handleCreatePlaylistWithSkill}
         onClose={() => setIsLibraryOpen(false)}
         onSelectSkillToPractice={handleSelectSkillToPractice}
         onAddSkill={handleAddSkill}
@@ -1144,6 +1327,20 @@ export default function App() {
         onImportData={handleImportData}
         onHibernateSkill={handleHibernateSkill}
         onDataReloaded={handleReloadAllData}
+      />
+
+      {/* Playlists Management & Switcher Modal */}
+      <PlaylistsModal
+        isOpen={isPlaylistsModalOpen}
+        onClose={() => setIsPlaylistsModalOpen(false)}
+        playlists={playlists}
+        activePlaylistId={activePlaylistId}
+        skills={skills}
+        onSelectPlaylist={handleSelectPlaylist}
+        onCreatePlaylist={handleCreatePlaylist}
+        onRenamePlaylist={handleRenamePlaylist}
+        onDuplicatePlaylist={handleDuplicatePlaylist}
+        onDeletePlaylist={handleDeletePlaylist}
       />
     </div>
   );

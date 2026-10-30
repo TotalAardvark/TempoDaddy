@@ -24,6 +24,7 @@ interface ColdStartScreenProps {
   onToggleRandomOrder?: (random: boolean) => void;
   onStart: () => void;
   onOpenLibrary: () => void;
+  onOpenAddSkill?: () => void;
 }
 
 export const ColdStartScreen: React.FC<ColdStartScreenProps> = ({
@@ -39,6 +40,7 @@ export const ColdStartScreen: React.FC<ColdStartScreenProps> = ({
   onToggleRandomOrder,
   onStart,
   onOpenLibrary,
+  onOpenAddSkill,
 }) => {
   const [isPbTooltipOpen, setIsPbTooltipOpen] = useState(false);
   const [isStreakTooltipOpen, setIsStreakTooltipOpen] = useState(false);
@@ -46,6 +48,15 @@ export const ColdStartScreen: React.FC<ColdStartScreenProps> = ({
   // Pressing ANY key on the keyboard starts the exercise immediately (excluding Escape & modifiers)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // If playlist is empty, don't trigger start on keypress; open add menu instead
+      if (!firstSkill) {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          if (onOpenAddSkill) onOpenAddSkill();
+          else onOpenLibrary();
+        }
+        return;
+      }
       // Don't trigger if user is interacting with an input or textarea
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
         return;
@@ -78,7 +89,15 @@ export const ColdStartScreen: React.FC<ColdStartScreenProps> = ({
 
   return (
     <div
-      onClick={onStart}
+      onClick={() => {
+        if (firstSkill) {
+          onStart();
+        } else if (onOpenAddSkill) {
+          onOpenAddSkill();
+        } else {
+          onOpenLibrary();
+        }
+      }}
       style={{ paddingTop: 'var(--app-header-padding-top)' }}
       className="h-[100dvh] max-h-[100dvh] overflow-hidden w-full flex flex-col justify-between items-center px-6 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-gradient-to-b from-neutral-950 via-neutral-900 to-black text-white cursor-pointer select-none transition-colors"
     >
@@ -174,7 +193,7 @@ export const ColdStartScreen: React.FC<ColdStartScreenProps> = ({
         </h1>
 
         {/* Up First Preview Card */}
-        {firstSkill && (
+        {firstSkill ? (
           <div className="w-full bg-neutral-900/90 border border-neutral-800 rounded-2xl p-4 text-left shadow-lg backdrop-blur">
             <div className="text-[11px] font-mono uppercase tracking-wider text-neutral-500 mb-1">
               UP FIRST
@@ -203,6 +222,28 @@ export const ColdStartScreen: React.FC<ColdStartScreenProps> = ({
                   showLabels={false}
                 />
               </div>
+            </div>
+          </div>
+        ) : (
+          <div
+            onClick={(e) => {
+              e.stopPropagation();
+              if (onOpenAddSkill) {
+                onOpenAddSkill();
+              } else {
+                onOpenLibrary();
+              }
+            }}
+            className="w-full bg-neutral-900/90 hover:bg-neutral-850 active:bg-neutral-800 border border-dashed border-amber-500/50 hover:border-amber-400 rounded-2xl p-4 text-left shadow-lg backdrop-blur cursor-pointer transition group"
+          >
+            <div className="text-[11px] font-mono uppercase tracking-wider text-amber-400/80 mb-1">
+              UP FIRST
+            </div>
+            <div className="text-base font-bold text-white group-hover:text-amber-300 transition">
+              Add a skill to start!
+            </div>
+            <div className="text-xs text-neutral-400 mt-1">
+              This playlist is empty. Tap to add rudiments or custom drills.
             </div>
           </div>
         )}

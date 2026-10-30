@@ -1,12 +1,16 @@
-import type { Skill, PracticeSessionLog, TempoRampSettings, MetronomeTimbre, PbDisplayRange } from '../types';
+import type { Skill, Playlist, PracticeSessionLog, TempoRampSettings, MetronomeTimbre, PbDisplayRange } from '../types';
 import { INITIAL_SKILLS } from '../data/initialSkills';
 
 const SKILLS_KEY = 'tempo_skills_v1';
+const PLAYLISTS_KEY = 'tempo_playlists_v1';
+const ACTIVE_PLAYLIST_ID_KEY = 'tempo_active_playlist_id_v1';
 const SESSIONS_KEY = 'tempo_sessions_v1';
 const TEMPO_RAMP_KEY = 'tempo_coach_ramp_settings_v1';
 const TIMBRE_KEY = 'tempo_coach_metronome_timbre_v1';
 const PB_DISPLAY_RANGE_KEY = 'tempo_coach_pb_display_range_v1';
 const DEFAULT_TIMBRE: MetronomeTimbre = 'woodblock';
+
+export const DEFAULT_PLAYLIST_NAME = "Let's Go!";
 
 export const DEFAULT_RAMP_SETTINGS: TempoRampSettings = {
   startPercent: 80,
@@ -58,6 +62,175 @@ export const storageManager = {
     } catch (e) {
       console.error('Error saving skills to localStorage', e);
     }
+  },
+
+  getPlaylists(): Playlist[] {
+    try {
+      const stored = localStorage.getItem(PLAYLISTS_KEY);
+      const skills = this.getSkills();
+      const validSkillIds = new Set(skills.map((s) => s.id));
+
+      if (!stored) {
+        // Initialize default playlist containing all existing non-hibernated and hibernated skill IDs
+        const defaultPlaylist: Playlist = {
+          id: 'default_lets_go',
+          name: DEFAULT_PLAYLIST_NAME,
+          skillIds: skills.map((s) => s.id),
+          createdAt: new Date().toISOString(),
+          lastPlayedAt: new Date().toISOString(),
+        };
+        const initialList = [defaultPlaylist];
+        localStorage.setItem(PLAYLISTS_KEY, JSON.stringify(initialList));
+        localStorage.setItem(ACTIVE_PLAYLIST_ID_KEY, defaultPlaylist.id);
+        return initialList;
+      }
+      const parsed: Playlist[] = JSON.parse(stored);
+      // Clean up any dangling skill IDs that no longer exist in skills table
+      let needsSave = false;
+      parsed.forEach((pl) => {
+        const cleaned = pl.skillIds.filter((id) => validSkillIds.has(id));
+        if (cleaned.length !== pl.skillIds.length) {
+          pl.skillIds = cleaned;
+          needsSave = true;
+        }
+      });
+      if (needsSave) {
+        localStorage.setItem(PLAYLISTS_KEY, JSON.stringify(parsed));
+      }
+      return parsed;
+    } catch (e) {
+      console.error('Error reading playlists from localStorage', e);
+      return [];
+    }
+  },
+
+  savePlaylists(playlists: Playlist[]) {
+    try {
+      localStorage.setItem(PLAYLISTS_KEY, JSON.stringify(playlists));
+    } catch (e) {
+      console.error('Error saving playlists to localStorage', e);
+    }
+  },
+
+  getActivePlaylistId(): string {
+    try {
+      const activeId = localStorage.getItem(ACTIVE_PLAYLIST_ID_KEY);
+      const playlists = this.getPlaylists();
+      if (activeId && playlists.some((p) => p.id === activeId)) {
+        return activeId;
+      }
+      if (playlists.length > 0) {
+        localStorage.setItem(ACTIVE_PLAYLIST_ID_KEY, playlists[0].id);
+        return playlists[0].id;
+      }
+    } catch (e) {
+      console.error('Error reading active playlist ID', e);
+    }
+    return 'default_lets_go';
+  },
+
+  setActivePlaylistId(playlistId: string) {
+    try {
+      localStorage.setItem(ACTIVE_PLAYLIST_ID_KEY, playlistId);
+      // Update lastPlayedAt on this playlist
+      const playlists = this.getPlaylists();
+      const idx = playlists.findIndex((p) => p.id === playlistId);
+      if (idx !== -1) {
+        playlists[idx].lastPlayedAt = new Date().toISOString();
+        this.savePlaylists(playlists);
+      }
+    } catch (e) {
+      console.error('Error saving active playlist ID', e);
+    }
+  },
+
+  createPlaylist(name: string): Playlist {
+    const playlists = this.getPlaylists();
+    const newPlaylist: Playlist = {
+      id: `pl_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+      name: name.trim() || 'New Routine',
+      skillIds: [],
+      createdAt: new Date().toISOString(),
+      lastPlayedAt: new Date().toISOString(),
+    };
+    playlists.push(newPlaylist);
+    this.savePlaylists(playlists);
+    this.setActivePlaylistId(newPlaylist.id);
+    return newPlaylist;
+  },
+
+  updatePlaylist(id: string, updates: Partial<Omit<Playlist, 'id'>>): Playlist[] {
+    const playlists = this.getPlaylists();
+    const idx = playlists.findIndex((p) => p.id === id);
+    if (idx !== -1) {
+      playlists[idx] = { ...playlists[idx], ...updates };
+      this.savePlaylists(playlists);
+    }
+    return playlists;
+  },
+
+  deletePlaylist(playlistId: string): { remainingPlaylists: Playlist[]; deletedSkillIds: string[] } {
+    const playlists = this.getPlaylists();
+    const remaining = playlists.filter((p) => p.id !== playlistId);
+    this.savePlaylists(remaining);
+
+    // If active playlist was deleted, fallback to first remaining
+    if (this.getActivePlaylistId() === playlistId && remaining.length > 0) {
+      this.setActivePlaylistId(remaining[0].id);
+    }
+
+    // Clean up skills that only existed in the deleted playlist
+    const allRemainingSkillIds = new Set<string>();
+    remaining.forEach((p) => p.skillIds.forEach((sid) => allRemainingSkillIds.add(sid)));
+
+    const allSkills = this.getSkills();
+    const deletedSkillIds: string[] = [];
+    const keptSkills: Skill[] = [];
+
+    // Filter against existing skills in the deleted playlist
+    const targetPlaylist = playlists.find((p) => p.id === playlistId);
+    const existingTargetSkillIds = new Set(
+      (targetPlaylist?.skillIds || []).filter((sid) => allSkills.some((s) => s.id === sid))
+    );
+
+    allSkills.forEach((skill) => {
+      if (allRemainingSkillIds.has(skill.id)) {
+        keptSkills.push(skill);
+      } else if (existingTargetSkillIds.has(skill.id)) {
+        deletedSkillIds.push(skill.id);
+      } else {
+        keptSkills.push(skill);
+      }
+    });
+
+    if (deletedSkillIds.length > 0) {
+      this.saveSkills(keptSkills);
+    }
+
+    return { remainingPlaylists: remaining, deletedSkillIds };
+  },
+
+  addSkillToPlaylist(skillId: string, playlistId: string) {
+    const playlists = this.getPlaylists();
+    const pl = playlists.find((p) => p.id === playlistId);
+    if (pl && !pl.skillIds.includes(skillId)) {
+      pl.skillIds.push(skillId);
+      this.savePlaylists(playlists);
+    }
+  },
+
+  removeSkillFromPlaylist(skillId: string, playlistId: string) {
+    const playlists = this.getPlaylists();
+    const pl = playlists.find((p) => p.id === playlistId);
+    if (pl) {
+      pl.skillIds = pl.skillIds.filter((id) => id !== skillId);
+      this.savePlaylists(playlists);
+    }
+  },
+
+  getPlaylistsForSkill(skillId: string): Playlist[] {
+    const playlists = this.getPlaylists();
+    return playlists.filter((p) => p.skillIds.includes(skillId));
   },
 
   saveSessions(sessions: PracticeSessionLog[]) {
@@ -285,6 +458,8 @@ export const storageManager = {
   exportDataJson(): string {
     return JSON.stringify({
       skills: this.getSkills(),
+      playlists: this.getPlaylists(),
+      activePlaylistId: this.getActivePlaylistId(),
       sessions: this.getSessions(),
       exportedAt: new Date().toISOString(),
     }, null, 2);
@@ -295,6 +470,12 @@ export const storageManager = {
       const data = JSON.parse(jsonString);
       if (Array.isArray(data.skills)) {
         this.saveSkills(data.skills);
+      }
+      if (Array.isArray(data.playlists)) {
+        this.savePlaylists(data.playlists);
+      }
+      if (data.activePlaylistId && typeof data.activePlaylistId === 'string') {
+        this.setActivePlaylistId(data.activePlaylistId);
       }
       if (Array.isArray(data.sessions)) {
         localStorage.setItem(SESSIONS_KEY, JSON.stringify(data.sessions));

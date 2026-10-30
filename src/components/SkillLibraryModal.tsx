@@ -28,7 +28,13 @@ import { invertSticking, invertTitle } from '../utils/stickingUtils';
 
 interface SkillLibraryModalProps {
   isOpen: boolean;
+  initialOpenAddSkill?: boolean;
   skills: Skill[];
+  playlists?: import('../types').Playlist[];
+  activePlaylistId?: string;
+  onOpenPlaylistsModal?: () => void;
+  onToggleSkillInPlaylist?: (skillId: string, playlistId: string) => void;
+  onCreatePlaylistWithSkill?: (playlistName: string, skillId: string) => void;
   onClose: () => void;
   onSelectSkillToPractice: (index: number) => void;
   onAddSkill: (newSkill: Omit<Skill, 'id' | 'createdAt' | 'order'>) => void;
@@ -54,7 +60,13 @@ interface SkillLibraryModalProps {
 
 export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
   isOpen,
+  initialOpenAddSkill = false,
   skills,
+  playlists = [],
+  activePlaylistId,
+  onOpenPlaylistsModal,
+  onToggleSkillInPlaylist,
+  onCreatePlaylistWithSkill,
   onClose,
   onSelectSkillToPractice,
   onAddSkill,
@@ -67,7 +79,13 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
   onHibernateSkill,
   onDataReloaded,
 }) => {
-  const [isAdding, setIsAdding] = useState(false);
+  const [isAdding, setIsAdding] = useState(initialOpenAddSkill);
+
+  useEffect(() => {
+    if (isOpen && initialOpenAddSkill) {
+      setIsAdding(true);
+    }
+  }, [isOpen, initialOpenAddSkill]);
   const [activeTab, setActiveTab] = useState<'presets' | 'custom'>('presets');
   const [hibernatedExpanded, setHibernatedExpanded] = useState(false);
   const [isReorderingMode, setIsReorderingMode] = useState(false);
@@ -81,6 +99,20 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
   const [editPb, setEditPb] = useState<number | ''>(100);
   const [editSubdivision, setEditSubdivision] = useState<Subdivision>('1/16');
   const [editIsTriplet, setEditIsTriplet] = useState(false);
+
+  // Playlist disclosure state inside Edit Menu
+  const [isPlaylistDisclosureOpen, setIsPlaylistDisclosureOpen] = useState(false);
+  const [isCreatingPlaylistInline, setIsCreatingPlaylistInline] = useState(false);
+  const [newPlaylistInlineName, setNewPlaylistInlineName] = useState('');
+
+  // Warning Modals state
+  const [multiPlaylistDeleteWarning, setMultiPlaylistDeleteWarning] = useState<{
+    skillId: string;
+    skillTitle: string;
+    playlists: import('../types').Playlist[];
+  } | null>(null);
+
+  const [orphanWarningSkillId, setOrphanWarningSkillId] = useState<string | null>(null);
 
   // Custom skill form state
   const [customTitle, setCustomTitle] = useState('');
@@ -432,9 +464,25 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
               <>
                 <div>
                   <div className="flex items-center justify-between mb-2.5">
-                    <span className="text-xs uppercase font-mono tracking-wider text-neutral-400">
-                      Current Practice Queue ({activeSkills.length})
-                    </span>
+                    {/* Clickable Header Pill for Playlists */}
+                    {activePlaylistId && onOpenPlaylistsModal ? (
+                      <button
+                        type="button"
+                        onClick={onOpenPlaylistsModal}
+                        className="px-3 py-1 rounded-full bg-neutral-800/80 hover:bg-neutral-800 border border-neutral-700/80 hover:border-amber-400/50 text-white flex items-center gap-1.5 transition text-xs font-semibold shadow-sm group"
+                        title="Switch or manage playlists"
+                      >
+                        <ListMusic className="w-3.5 h-3.5 text-amber-400 group-hover:scale-110 transition-transform" />
+                        <span className="truncate max-w-[150px] sm:max-w-[200px]">
+                          {playlists.find((p) => p.id === activePlaylistId)?.name || "Let's Go!"}
+                        </span>
+                        <ChevronDown className="w-3 h-3 text-neutral-400 group-hover:text-amber-400 transition" />
+                      </button>
+                    ) : (
+                      <span className="text-xs uppercase font-mono tracking-wider text-neutral-400">
+                        Current Practice Queue ({activeSkills.length})
+                      </span>
+                    )}
 
                     {/* Interactive Practice Order toggle */}
                     <button
@@ -653,7 +701,24 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
                                   {/* Pipe divider */}
                                   <div className="h-4 w-[1px] bg-neutral-800" />
 
-                                  {/* 3. Hibernate Button with Tap Confirmation */}
+                                  {/* 3. Playlist Membership Button */}
+                                  <button
+                                    type="button"
+                                    onClick={() => setIsPlaylistDisclosureOpen((prev) => !prev)}
+                                    className={`p-2 rounded-xl border transition flex items-center justify-center shadow-sm ${
+                                      isPlaylistDisclosureOpen
+                                        ? 'bg-amber-500/20 text-amber-400 border-amber-500/50'
+                                        : 'bg-neutral-900 border-neutral-800 hover:border-neutral-700 text-neutral-400 hover:text-amber-400 active:scale-95'
+                                    }`}
+                                    title="Add / Remove from Playlists"
+                                  >
+                                    <ListMusic className="w-4 h-4" />
+                                  </button>
+
+                                  {/* Pipe divider */}
+                                  <div className="h-4 w-[1px] bg-neutral-800" />
+
+                                  {/* 4. Hibernate Button with Tap Confirmation */}
                                   {activeConfirmAction === 'hibernate' ? (
                                     <button
                                       type="button"
@@ -699,20 +764,29 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
                                   {/* Pipe divider */}
                                   <div className="h-4 w-[1px] bg-neutral-800" />
 
-                                  {/* 4. Delete Button with Tap Confirmation */}
+                                  {/* 5. Delete Button with Tap Confirmation */}
                                   {activeConfirmAction === 'delete' ? (
                                     <button
                                       type="button"
                                       onClick={() =>
                                         triggerConfirmAction('delete', () => {
-                                          setEditingSkill(null);
-                                          onDeleteSkill(editingSkill.id);
+                                          const memberPlaylists = playlists.filter((p) => p.skillIds.includes(editingSkill.id));
+                                          if (memberPlaylists.length > 1) {
+                                            setMultiPlaylistDeleteWarning({
+                                              skillId: editingSkill.id,
+                                              skillTitle: editingSkill.title,
+                                              playlists: memberPlaylists,
+                                            });
+                                          } else {
+                                            setEditingSkill(null);
+                                            onDeleteSkill(editingSkill.id);
+                                          }
                                         })
                                       }
-                                      className="px-3 py-1.5 rounded-xl bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/50 text-[11px] font-bold flex items-center gap-1.5 animate-in fade-in shadow-sm"
+                                      className="px-3 py-1.5 rounded-xl bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 border border-amber-500/50 text-[11px] font-bold flex items-center gap-1.5 animate-in fade-in shadow-sm"
                                       title="Click again to permanently delete"
                                     >
-                                      <Trash2 className="w-3.5 h-3.5" />
+                                      <Trash2 className="w-3.5 h-3.5 text-amber-400" />
                                       <span>Delete?</span>
                                     </button>
                                   ) : (
@@ -720,17 +794,132 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
                                       type="button"
                                       onClick={() =>
                                         triggerConfirmAction('delete', () => {
-                                          setEditingSkill(null);
-                                          onDeleteSkill(editingSkill.id);
+                                          const memberPlaylists = playlists.filter((p) => p.skillIds.includes(editingSkill.id));
+                                          if (memberPlaylists.length > 1) {
+                                            setMultiPlaylistDeleteWarning({
+                                              skillId: editingSkill.id,
+                                              skillTitle: editingSkill.title,
+                                              playlists: memberPlaylists,
+                                            });
+                                          } else {
+                                            setEditingSkill(null);
+                                            onDeleteSkill(editingSkill.id);
+                                          }
                                         })
                                       }
-                                      className="p-2 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-neutral-400 hover:text-red-400 active:scale-95 transition flex items-center justify-center shadow-sm"
+                                      className="p-2 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-neutral-400 hover:text-amber-400 active:scale-95 transition flex items-center justify-center shadow-sm"
                                       title="Delete Skill"
                                     >
                                       <Trash2 className="w-4 h-4" />
                                     </button>
                                   )}
                                 </div>
+
+                                {/* Inline Playlist Membership Accordion / Disclosure */}
+                                {isPlaylistDisclosureOpen && (
+                                  <div className="mt-2.5 p-3 rounded-2xl bg-neutral-900/90 border border-neutral-800 space-y-2 animate-in fade-in">
+                                    <div className="flex items-center justify-between text-[11px] text-neutral-400">
+                                      <span className="font-semibold text-neutral-300 flex items-center gap-1.5">
+                                        <ListMusic className="w-3.5 h-3.5 text-amber-400" />
+                                        <span>In Playlists:</span>
+                                      </span>
+                                      <span className="text-[10px] text-neutral-500 font-mono">
+                                        {playlists.filter((p) => p.skillIds.includes(editingSkill.id)).length} selected
+                                      </span>
+                                    </div>
+
+                                    <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                                      {playlists.map((pl) => {
+                                        const isInPlaylist = pl.skillIds.includes(editingSkill.id);
+                                        return (
+                                          <label
+                                            key={pl.id}
+                                            className="flex items-center justify-between p-2 rounded-xl bg-neutral-950/70 hover:bg-neutral-950 border border-neutral-800/80 cursor-pointer text-xs text-neutral-300 hover:text-white transition"
+                                          >
+                                            <div className="flex items-center gap-2 truncate pr-2">
+                                              <input
+                                                type="checkbox"
+                                                checked={isInPlaylist}
+                                                onChange={() => {
+                                                  const memberCount = playlists.filter((p) => p.skillIds.includes(editingSkill.id)).length;
+                                                  if (isInPlaylist && memberCount <= 1) {
+                                                    // Trigger orphan protection warning modal
+                                                    setOrphanWarningSkillId(editingSkill.id);
+                                                    return;
+                                                  }
+                                                  onToggleSkillInPlaylist?.(editingSkill.id, pl.id);
+                                                }}
+                                                className="w-3.5 h-3.5 rounded bg-neutral-900 border-neutral-700 text-amber-500 focus:ring-0 cursor-pointer"
+                                              />
+                                              <span className="truncate">{pl.name}</span>
+                                            </div>
+                                            {pl.id === activePlaylistId && (
+                                              <span className="text-[10px] font-mono text-amber-400 shrink-0">
+                                                (Active)
+                                              </span>
+                                            )}
+                                          </label>
+                                        );
+                                      })}
+                                    </div>
+
+                                    {/* Inline Add to New Playlist Form */}
+                                    {!isCreatingPlaylistInline ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => setIsCreatingPlaylistInline(true)}
+                                        className="w-full py-1.5 text-center text-xs text-neutral-400 hover:text-amber-400 border border-dashed border-neutral-800 hover:border-amber-400/40 rounded-xl transition flex items-center justify-center gap-1.5"
+                                      >
+                                        <Plus className="w-3.5 h-3.5" />
+                                        <span>Create New Playlist</span>
+                                      </button>
+                                    ) : (
+                                      <div className="flex items-center gap-1.5 pt-1">
+                                        <input
+                                          type="text"
+                                          autoFocus
+                                          placeholder="Playlist name..."
+                                          value={newPlaylistInlineName}
+                                          onChange={(e) => setNewPlaylistInlineName(e.target.value)}
+                                          onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                              e.preventDefault();
+                                              if (newPlaylistInlineName.trim()) {
+                                                onCreatePlaylistWithSkill?.(newPlaylistInlineName.trim(), editingSkill.id);
+                                                setNewPlaylistInlineName('');
+                                                setIsCreatingPlaylistInline(false);
+                                              }
+                                            }
+                                            if (e.key === 'Escape') {
+                                              setIsCreatingPlaylistInline(false);
+                                            }
+                                          }}
+                                          className="flex-1 bg-neutral-950 border border-neutral-800 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-amber-400"
+                                        />
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            if (newPlaylistInlineName.trim()) {
+                                              onCreatePlaylistWithSkill?.(newPlaylistInlineName.trim(), editingSkill.id);
+                                              setNewPlaylistInlineName('');
+                                              setIsCreatingPlaylistInline(false);
+                                            }
+                                          }}
+                                          className="px-2.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold text-xs transition"
+                                        >
+                                          Add
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => setIsCreatingPlaylistInline(false)}
+                                          className="p-1.5 rounded-xl text-neutral-400 hover:text-white"
+                                        >
+                                          <X className="w-3.5 h-3.5" />
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
                               </div>
 
                               <div className="flex gap-2 pt-1">
@@ -1502,6 +1691,100 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
           onDataReloaded?.();
         }}
       />
+
+      {/* Multi-Playlist Delete Warning Modal */}
+      {multiPlaylistDeleteWarning && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-sm w-full p-5 space-y-4 shadow-2xl">
+            <div className="flex items-center gap-2 text-amber-400">
+              <Trash2 className="w-5 h-5 text-amber-400" />
+              <h3 className="text-sm font-bold text-white">Delete from all playlists?</h3>
+            </div>
+            <p className="text-xs text-neutral-300 leading-relaxed">
+              Warning: <strong className="text-amber-400">"{multiPlaylistDeleteWarning.skillTitle}"</strong> is also in the following playlists:
+            </p>
+            <ul className="text-xs text-neutral-400 space-y-1 bg-neutral-950 p-2.5 rounded-xl border border-neutral-850">
+              {multiPlaylistDeleteWarning.playlists.map((p) => (
+                <li key={p.id} className="flex items-center gap-1.5">
+                  <ListMusic className="w-3.5 h-3.5 text-amber-400" />
+                  <span className="truncate">{p.name}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="text-[11px] text-neutral-400 leading-normal">
+              To disable this skill in this routine alone, use <strong className="text-purple-300">Hibernate (zZz)</strong> instead.
+            </p>
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setMultiPlaylistDeleteWarning(null)}
+                className="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-neutral-400 hover:text-white hover:bg-neutral-800 transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const id = multiPlaylistDeleteWarning.skillId;
+                  setMultiPlaylistDeleteWarning(null);
+                  setEditingSkill(null);
+                  onDeleteSkill(id);
+                }}
+                className="px-4 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold text-xs transition shadow-sm"
+              >
+                Delete Everywhere
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Orphan Skill Protection Warning Modal */}
+      {orphanWarningSkillId && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-sm w-full p-5 space-y-4 shadow-2xl">
+            <div className="flex items-center gap-2 text-amber-400">
+              <Sun className="w-5 h-5 text-amber-400" />
+              <h3 className="text-sm font-bold text-white">Remove from all playlists?</h3>
+            </div>
+            <p className="text-xs text-neutral-300 leading-relaxed">
+              Deselecting this skill from all playlists will leave it without a home! Would you like to keep it hibernated or delete it?
+            </p>
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setOrphanWarningSkillId(null)}
+                className="px-3 py-1.5 rounded-xl text-xs font-semibold text-neutral-400 hover:text-white hover:bg-neutral-800 transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const id = orphanWarningSkillId;
+                  setOrphanWarningSkillId(null);
+                  onHibernateSkill(id);
+                }}
+                className="px-3 py-1.5 rounded-xl bg-purple-500/20 text-purple-300 border border-purple-500/40 hover:bg-purple-500/30 text-xs font-bold transition"
+              >
+                Hibernate
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const id = orphanWarningSkillId;
+                  setOrphanWarningSkillId(null);
+                  setEditingSkill(null);
+                  onDeleteSkill(id);
+                }}
+                className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold text-xs transition shadow-sm"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
