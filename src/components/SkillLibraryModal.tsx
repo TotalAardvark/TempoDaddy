@@ -17,6 +17,7 @@ import {
   Copy,
   ArrowLeftRight,
   GripVertical,
+  ListMusic,
 } from 'lucide-react';
 import type { Skill, PresetSkill, Subdivision } from '../types';
 import { PRESET_SKILLS } from '../data/initialSkills';
@@ -77,7 +78,7 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
   const [editTitle, setEditTitle] = useState('');
   const [editSticking, setEditSticking] = useState('');
   const [editNotes, setEditNotes] = useState('');
-  const [editPb, setEditPb] = useState(100);
+  const [editPb, setEditPb] = useState<number | ''>(100);
   const [editSubdivision, setEditSubdivision] = useState<Subdivision>('1/16');
   const [editIsTriplet, setEditIsTriplet] = useState(false);
 
@@ -89,32 +90,43 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
   const [customSubdivision, setCustomSubdivision] = useState<Subdivision>('1/8');
   const [customIsTriplet, setCustomIsTriplet] = useState(false);
 
+  // Quick Action confirmation state inside Edit form ('invert' | 'duplicate' | 'hibernate' | 'delete' | null)
+  const [activeConfirmAction, setActiveConfirmAction] = useState<'invert' | 'duplicate' | 'hibernate' | 'delete' | null>(null);
+  const confirmActionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Duplication animation feedback state
   const [isDuplicating, setIsDuplicating] = useState(false);
   const [duplicateSuccessText, setDuplicateSuccessText] = useState<string | null>(null);
 
-  // Delete confirmation state inside Edit form
-  const [confirmDeleteSkillId, setConfirmDeleteSkillId] = useState<string | null>(null);
-  const deleteConfirmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Departing hibernated skill state for smooth queue animation feedback
+  const [departingSkillId, setDepartingSkillId] = useState<string | null>(null);
+  const [departingSkillCollapsing, setDepartingSkillCollapsing] = useState(false);
 
   // Drag-and-drop reordering state
   const [draggingSkillId, setDraggingSkillId] = useState<string | null>(null);
   const [dragOverSkillId, setDragOverSkillId] = useState<string | null>(null);
   const activeSkillsListRef = useRef<HTMLDivElement | null>(null);
 
-  const handleDeleteWithConfirm = (skillId: string) => {
-    if (confirmDeleteSkillId === skillId) {
-      if (deleteConfirmTimerRef.current) clearTimeout(deleteConfirmTimerRef.current);
-      setConfirmDeleteSkillId(null);
-      setEditingSkill(null);
-      onDeleteSkill(skillId);
+  const triggerConfirmAction = (
+    action: 'invert' | 'duplicate' | 'hibernate' | 'delete',
+    onConfirm: () => void
+  ) => {
+    if (activeConfirmAction === action) {
+      if (confirmActionTimerRef.current) clearTimeout(confirmActionTimerRef.current);
+      setActiveConfirmAction(null);
+      onConfirm();
     } else {
-      setConfirmDeleteSkillId(skillId);
-      if (deleteConfirmTimerRef.current) clearTimeout(deleteConfirmTimerRef.current);
-      deleteConfirmTimerRef.current = setTimeout(() => {
-        setConfirmDeleteSkillId(null);
-      }, 3500);
+      setActiveConfirmAction(action);
+      if (confirmActionTimerRef.current) clearTimeout(confirmActionTimerRef.current);
+      confirmActionTimerRef.current = setTimeout(() => {
+        setActiveConfirmAction(null);
+      }, 4000);
     }
+  };
+
+  const clearConfirmAction = () => {
+    if (confirmActionTimerRef.current) clearTimeout(confirmActionTimerRef.current);
+    setActiveConfirmAction(null);
   };
 
   const handlePointerReorderStart = (
@@ -256,11 +268,12 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
   };
 
   const handleOpenEdit = (skill: Skill) => {
+    clearConfirmAction();
     setEditingSkill(skill);
     setEditTitle(skill.title);
     setEditSticking(skill.sticking || '');
     setEditNotes(skill.notes || '');
-    setEditPb(skill.personalBestBpm || 80);
+    setEditPb(skill.personalBestBpm ?? 80);
     setEditSubdivision(skill.subdivision || '1/16');
     setEditIsTriplet(!!skill.isTriplet);
   };
@@ -269,18 +282,47 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
     e.preventDefault();
     if (!editingSkill || !editTitle.trim()) return;
 
+    const validatedTempo =
+      typeof editPb === 'number' && !isNaN(editPb) && editPb > 0 ? editPb : 40;
+
     if (onUpdateSkill) {
       onUpdateSkill(editingSkill.id, {
         title: editTitle.trim(),
         sticking: editSticking.trim() || undefined,
         notes: editNotes.trim() || undefined,
-        personalBestBpm: editPb,
+        personalBestBpm: validatedTempo,
         subdivision: editSubdivision,
         isTriplet: editIsTriplet,
       });
     }
 
+    clearConfirmAction();
     setEditingSkill(null);
+  };
+
+  const handleConfirmHibernate = (skillId: string) => {
+    // If hibernating an active skill, close edit dialog and run departing animation in queue
+    const targetSkill = skills.find((s) => s.id === skillId);
+    setEditingSkill(null);
+    clearConfirmAction();
+
+    if (targetSkill && !targetSkill.isHibernated) {
+      setDepartingSkillId(skillId);
+      setDepartingSkillCollapsing(false);
+
+      // Keep visible in queue with banner for ~800ms
+      setTimeout(() => {
+        setDepartingSkillCollapsing(true);
+        // Animate collapse & fade, then call onHibernateSkill
+        setTimeout(() => {
+          onHibernateSkill(skillId);
+          setDepartingSkillId(null);
+          setDepartingSkillCollapsing(false);
+        }, 400);
+      }, 900);
+    } else {
+      onHibernateSkill(skillId);
+    }
   };
 
   const handleInvertEdit = () => {
@@ -305,11 +347,14 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
 
     // Quick visual cue / script animation
     setTimeout(() => {
+      const tempo =
+        typeof editPb === 'number' && !isNaN(editPb) && editPb > 0 ? editPb : 40;
+
       const duplicated = onDuplicateSkill(editingSkill.id, {
         title: editTitle.trim() ? `${editTitle.trim()} (Copy)` : `${editingSkill.title} (Copy)`,
         sticking: editSticking.trim() || undefined,
         notes: editNotes.trim() || undefined,
-        personalBestBpm: editPb,
+        personalBestBpm: tempo,
         subdivision: editSubdivision,
         isTriplet: editIsTriplet,
       });
@@ -494,10 +539,13 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
                                   <div className="flex items-center gap-1.5">
                                     <input
                                       type="number"
-                                      min="30"
+                                      min="1"
                                       max="300"
                                       value={editPb}
-                                      onChange={(e) => setEditPb(parseInt(e.target.value) || 80)}
+                                      onChange={(e) => {
+                                        const val = e.target.value;
+                                        setEditPb(val === '' ? '' : parseInt(val, 10));
+                                      }}
                                       className="w-full min-w-0 bg-neutral-900 border border-neutral-800 rounded-xl px-2.5 py-2 text-xs text-white font-mono focus:outline-none focus:border-amber-400"
                                     />
                                     <button
@@ -528,7 +576,7 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
 
                                 <div className="col-span-2 flex flex-col items-end justify-end">
                                   <label className="text-[11px] text-neutral-400 block mb-1 w-full text-right">
-                                    Triplets
+                                    Triplets?
                                   </label>
                                   <div className="h-[34px] flex items-center justify-end w-full">
                                     <input
@@ -546,74 +594,136 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
                                 <div className="text-[10px] uppercase font-mono tracking-wider text-neutral-400 mb-1.5 flex justify-between items-center px-1">
                                   <span>Quick Actions</span>
                                   {duplicateSuccessText && (
-                                    <span className="text-cyan-400 font-sans text-xs animate-in fade-in">
+                                    <span className="text-emerald-400 font-sans text-xs animate-in fade-in">
                                       {duplicateSuccessText}
                                     </span>
                                   )}
                                 </div>
 
                                 <div className="flex items-center justify-center gap-2 py-1">
-                                  {/* 1. Invert Button */}
-                                  <button
-                                    type="button"
-                                    onClick={handleInvertEdit}
-                                    className="p-2 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-neutral-400 hover:text-amber-400 active:scale-95 transition flex items-center justify-center shadow-sm"
-                                    title="Invert Sticking (R ⇄ L) & update title"
-                                  >
-                                    <ArrowLeftRight className="w-4 h-4" />
-                                  </button>
-
-                                  {/* Pipe divider */}
-                                  <div className="h-4 w-[1px] bg-neutral-800" />
-
-                                  {/* 2. Duplicate Button */}
-                                  <button
-                                    type="button"
-                                    onClick={handleDuplicateEdit}
-                                    disabled={isDuplicating}
-                                    className="p-2 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-neutral-400 hover:text-cyan-400 active:scale-95 transition flex items-center justify-center shadow-sm disabled:opacity-50"
-                                    title="Duplicate this skill into the queue"
-                                  >
-                                    <Copy className={`w-4 h-4 ${isDuplicating ? 'animate-spin' : ''}`} />
-                                  </button>
-
-                                  {/* Pipe divider */}
-                                  <div className="h-4 w-[1px] bg-neutral-800" />
-
-                                  {/* 3. Hibernate Button */}
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      onHibernateSkill(editingSkill.id);
-                                      setEditingSkill(null);
-                                    }}
-                                    className="p-2 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-neutral-400 hover:text-indigo-400 active:scale-95 transition flex items-center justify-center shadow-sm font-mono font-bold text-xs"
-                                    title={editingSkill.isHibernated ? 'Wake up skill' : 'Hibernate skill (zZz)'}
-                                  >
-                                    {editingSkill.isHibernated ? (
-                                      <Sun className="w-4 h-4 text-indigo-300" />
-                                    ) : (
-                                      <span className="tracking-tighter">zZz</span>
-                                    )}
-                                  </button>
-
-                                  {/* Pipe divider */}
-                                  <div className="h-4 w-[1px] bg-neutral-800" />
-
-                                  {/* 4. Delete Button with Tap Confirmation Safety */}
-                                  {confirmDeleteSkillId === editingSkill.id ? (
+                                  {/* 1. Invert Button with Tap Confirmation */}
+                                  {activeConfirmAction === 'invert' ? (
                                     <button
                                       type="button"
-                                      onClick={() => handleDeleteWithConfirm(editingSkill.id)}
-                                      className="px-2.5 py-1.5 rounded-xl bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/50 text-[11px] font-bold flex items-center gap-1 animate-in fade-in shadow-sm"
+                                      onClick={() => triggerConfirmAction('invert', handleInvertEdit)}
+                                      className="px-3 py-1.5 rounded-xl bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 border border-amber-500/50 text-[11px] font-bold flex items-center gap-1.5 animate-in fade-in shadow-sm"
+                                      title="Click again to confirm invert"
+                                    >
+                                      <ArrowLeftRight className="w-3.5 h-3.5" />
+                                      <span>Invert?</span>
+                                    </button>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => triggerConfirmAction('invert', handleInvertEdit)}
+                                      className="p-2 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-neutral-400 hover:text-amber-400 active:scale-95 transition flex items-center justify-center shadow-sm"
+                                      title="Invert Sticking (R ⇄ L) & update title"
+                                    >
+                                      <ArrowLeftRight className="w-4 h-4" />
+                                    </button>
+                                  )}
+
+                                  {/* Pipe divider */}
+                                  <div className="h-4 w-[1px] bg-neutral-800" />
+
+                                  {/* 2. Duplicate Button with Tap Confirmation */}
+                                  {activeConfirmAction === 'duplicate' ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => triggerConfirmAction('duplicate', handleDuplicateEdit)}
+                                      disabled={isDuplicating}
+                                      className="px-3 py-1.5 rounded-xl bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border border-emerald-500/50 text-[11px] font-bold flex items-center gap-1.5 animate-in fade-in shadow-sm disabled:opacity-50"
+                                      title="Click again to duplicate"
+                                    >
+                                      <Copy className={`w-3.5 h-3.5 ${isDuplicating ? 'animate-spin' : ''}`} />
+                                      <span>Duplicate?</span>
+                                    </button>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => triggerConfirmAction('duplicate', handleDuplicateEdit)}
+                                      disabled={isDuplicating}
+                                      className="p-2 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-neutral-400 hover:text-emerald-400 active:scale-95 transition flex items-center justify-center shadow-sm disabled:opacity-50"
+                                      title="Duplicate this skill into the queue"
+                                    >
+                                      <Copy className={`w-4 h-4 ${isDuplicating ? 'animate-spin' : ''}`} />
+                                    </button>
+                                  )}
+
+                                  {/* Pipe divider */}
+                                  <div className="h-4 w-[1px] bg-neutral-800" />
+
+                                  {/* 3. Hibernate Button with Tap Confirmation */}
+                                  {activeConfirmAction === 'hibernate' ? (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        triggerConfirmAction('hibernate', () =>
+                                          handleConfirmHibernate(editingSkill.id)
+                                        )
+                                      }
+                                      className="px-3 py-1.5 rounded-xl bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 border border-purple-500/50 text-[11px] font-bold flex items-center gap-1.5 animate-in fade-in shadow-sm"
+                                      title={editingSkill.isHibernated ? 'Click again to wake up' : 'Click again to hibernate'}
+                                    >
+                                      {editingSkill.isHibernated ? (
+                                        <>
+                                          <Sun className="w-3.5 h-3.5" />
+                                          <span>Wake?</span>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <span className="tracking-tighter font-mono font-bold">zZz</span>
+                                          <span>Hibernate?</span>
+                                        </>
+                                      )}
+                                    </button>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        triggerConfirmAction('hibernate', () =>
+                                          handleConfirmHibernate(editingSkill.id)
+                                        )
+                                      }
+                                      className="p-2 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-neutral-400 hover:text-purple-400 active:scale-95 transition flex items-center justify-center shadow-sm font-mono font-bold text-xs"
+                                      title={editingSkill.isHibernated ? 'Wake up skill' : 'Hibernate skill (zZz)'}
+                                    >
+                                      {editingSkill.isHibernated ? (
+                                        <Sun className="w-4 h-4 text-purple-300" />
+                                      ) : (
+                                        <span className="tracking-tighter">zZz</span>
+                                      )}
+                                    </button>
+                                  )}
+
+                                  {/* Pipe divider */}
+                                  <div className="h-4 w-[1px] bg-neutral-800" />
+
+                                  {/* 4. Delete Button with Tap Confirmation */}
+                                  {activeConfirmAction === 'delete' ? (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        triggerConfirmAction('delete', () => {
+                                          setEditingSkill(null);
+                                          onDeleteSkill(editingSkill.id);
+                                        })
+                                      }
+                                      className="px-3 py-1.5 rounded-xl bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/50 text-[11px] font-bold flex items-center gap-1.5 animate-in fade-in shadow-sm"
                                       title="Click again to permanently delete"
                                     >
+                                      <Trash2 className="w-3.5 h-3.5" />
                                       <span>Delete?</span>
                                     </button>
                                   ) : (
                                     <button
                                       type="button"
-                                      onClick={() => handleDeleteWithConfirm(editingSkill.id)}
+                                      onClick={() =>
+                                        triggerConfirmAction('delete', () => {
+                                          setEditingSkill(null);
+                                          onDeleteSkill(editingSkill.id);
+                                        })
+                                      }
                                       className="p-2 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-neutral-400 hover:text-red-400 active:scale-95 transition flex items-center justify-center shadow-sm"
                                       title="Delete Skill"
                                     >
@@ -639,6 +749,45 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
                                 </button>
                               </div>
                             </form>
+                          </div>
+                        );
+                      }
+
+                      const isDeparting = departingSkillId === skill.id;
+
+                      if (isDeparting) {
+                        return (
+                          <div
+                            key={skill.id}
+                            className={`relative overflow-hidden rounded-2xl border transition-all duration-300 ease-in-out ${
+                              departingSkillCollapsing
+                                ? "max-h-0 opacity-0 scale-95 my-0 py-0 border-transparent pointer-events-none"
+                                : "max-h-28 opacity-100 scale-100 bg-neutral-950/80 border-purple-500/40 p-3 shadow-lg shadow-purple-950/30"
+                            }`}
+                          >
+                            <div className="flex items-center justify-between gap-2.5">
+                              <div className="min-w-0 flex-1 flex items-center gap-2">
+                                <span className="text-xs font-semibold text-neutral-300 truncate">
+                                  {skill.title}
+                                </span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setHibernatedExpanded(true);
+                                  onHibernateSkill(skill.id);
+                                  setDepartingSkillId(null);
+                                }}
+                                className="text-xs font-medium text-purple-300 hover:text-purple-200 flex items-center gap-1.5 shrink-0 hover:underline bg-purple-500/10 border border-purple-500/30 px-2.5 py-1 rounded-xl transition cursor-pointer"
+                                title="View in Hibernated Skills"
+                              >
+                                <span>Skill moved to</span>
+                                <span className="font-bold flex items-center gap-1 text-purple-200 underline underline-offset-2">
+                                  <ListMusic className="w-3.5 h-3.5 text-purple-400" />
+                                  Hibernated Skills
+                                </span>
+                              </button>
+                            </div>
                           </div>
                         );
                       }
@@ -810,10 +959,13 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
                                       <div className="flex items-center gap-1.5">
                                         <input
                                           type="number"
-                                          min="30"
+                                          min="1"
                                           max="300"
                                           value={editPb}
-                                          onChange={(e) => setEditPb(parseInt(e.target.value) || 80)}
+                                          onChange={(e) => {
+                                            const val = e.target.value;
+                                            setEditPb(val === '' ? '' : parseInt(val, 10));
+                                          }}
                                           className="w-full min-w-0 bg-neutral-900 border border-neutral-800 rounded-xl px-2.5 py-2 text-xs text-white font-mono focus:outline-none focus:border-amber-400"
                                         />
                                         <button
@@ -844,7 +996,7 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
 
                                     <div className="col-span-2 flex flex-col items-end justify-end">
                                       <label className="text-[11px] text-neutral-400 block mb-1 w-full text-right">
-                                        Triplets
+                                        Triplets?
                                       </label>
                                       <div className="h-[34px] flex items-center justify-end w-full">
                                         <input
@@ -862,74 +1014,138 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
                                     <div className="text-[10px] uppercase font-mono tracking-wider text-neutral-400 mb-1.5 flex justify-between items-center px-1">
                                       <span>Quick Actions</span>
                                       {duplicateSuccessText && (
-                                        <span className="text-cyan-400 font-sans text-xs animate-in fade-in">
+                                        <span className="text-emerald-400 font-sans text-xs animate-in fade-in">
                                           {duplicateSuccessText}
                                         </span>
                                       )}
                                     </div>
 
                                     <div className="flex items-center justify-center gap-2 py-1">
-                                      {/* 1. Invert Button */}
-                                      <button
-                                        type="button"
-                                        onClick={handleInvertEdit}
-                                        className="p-2 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-neutral-400 hover:text-amber-400 active:scale-95 transition flex items-center justify-center shadow-sm"
-                                        title="Invert Sticking (R ⇄ L) & update title"
-                                      >
-                                        <ArrowLeftRight className="w-4 h-4" />
-                                      </button>
+                                      {/* 1. Invert Button with Tap Confirmation */}
+                                      {activeConfirmAction === 'invert' ? (
+                                        <button
+                                          type="button"
+                                          onClick={() => triggerConfirmAction('invert', handleInvertEdit)}
+                                          className="px-3 py-1.5 rounded-xl bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 border border-amber-500/50 text-[11px] font-bold flex items-center gap-1.5 animate-in fade-in shadow-sm"
+                                          title="Click again to confirm invert"
+                                        >
+                                          <ArrowLeftRight className="w-3.5 h-3.5" />
+                                          <span>Invert?</span>
+                                        </button>
+                                      ) : (
+                                        <button
+                                          type="button"
+                                          onClick={() => triggerConfirmAction('invert', handleInvertEdit)}
+                                          className="p-2 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-neutral-400 hover:text-amber-400 active:scale-95 transition flex items-center justify-center shadow-sm"
+                                          title="Invert Sticking (R ⇄ L) & update title"
+                                        >
+                                          <ArrowLeftRight className="w-4 h-4" />
+                                        </button>
+                                      )}
 
                                       {/* Pipe divider */}
                                       <div className="h-4 w-[1px] bg-neutral-800" />
 
-                                      {/* 2. Duplicate Button */}
-                                      <button
-                                        type="button"
-                                        onClick={handleDuplicateEdit}
-                                        disabled={isDuplicating}
-                                        className="p-2 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-neutral-400 hover:text-cyan-400 active:scale-95 transition flex items-center justify-center shadow-sm disabled:opacity-50"
-                                        title="Duplicate this skill into the queue"
-                                      >
-                                        <Copy className={`w-4 h-4 ${isDuplicating ? 'animate-spin' : ''}`} />
-                                      </button>
+                                      {/* 2. Duplicate Button with Tap Confirmation */}
+                                      {activeConfirmAction === 'duplicate' ? (
+                                        <button
+                                          type="button"
+                                          onClick={() => triggerConfirmAction('duplicate', handleDuplicateEdit)}
+                                          disabled={isDuplicating}
+                                          className="px-3 py-1.5 rounded-xl bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border border-emerald-500/50 text-[11px] font-bold flex items-center gap-1.5 animate-in fade-in shadow-sm disabled:opacity-50"
+                                          title="Click again to duplicate"
+                                        >
+                                          <Copy className={`w-3.5 h-3.5 ${isDuplicating ? 'animate-spin' : ''}`} />
+                                          <span>Duplicate?</span>
+                                        </button>
+                                      ) : (
+                                        <button
+                                          type="button"
+                                          onClick={() => triggerConfirmAction('duplicate', handleDuplicateEdit)}
+                                          disabled={isDuplicating}
+                                          className="p-2 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-neutral-400 hover:text-emerald-400 active:scale-95 transition flex items-center justify-center shadow-sm disabled:opacity-50"
+                                          title="Duplicate this skill into the queue"
+                                        >
+                                          <Copy className={`w-4 h-4 ${isDuplicating ? 'animate-spin' : ''}`} />
+                                        </button>
+                                      )}
 
                                       {/* Pipe divider */}
                                       <div className="h-4 w-[1px] bg-neutral-800" />
 
-                                      {/* 3. Hibernate / Wake Button */}
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          onHibernateSkill(editingSkill.id);
-                                          setEditingSkill(null);
-                                        }}
-                                        className="p-2 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-neutral-400 hover:text-indigo-400 active:scale-95 transition flex items-center justify-center shadow-sm font-mono font-bold text-xs"
-                                        title={editingSkill.isHibernated ? 'Wake up skill' : 'Hibernate skill (zZz)'}
-                                      >
-                                        {editingSkill.isHibernated ? (
-                                          <Sun className="w-4 h-4 text-indigo-300" />
-                                        ) : (
-                                          <span className="tracking-tighter">zZz</span>
-                                        )}
-                                      </button>
+                                      {/* 3. Hibernate / Wake Button with Tap Confirmation */}
+                                      {activeConfirmAction === 'hibernate' ? (
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            triggerConfirmAction('hibernate', () => {
+                                              onHibernateSkill(editingSkill.id);
+                                              setEditingSkill(null);
+                                            })
+                                          }
+                                          className="px-3 py-1.5 rounded-xl bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 border border-purple-500/50 text-[11px] font-bold flex items-center gap-1.5 animate-in fade-in shadow-sm"
+                                          title={editingSkill.isHibernated ? 'Click again to wake up' : 'Click again to hibernate'}
+                                        >
+                                          {editingSkill.isHibernated ? (
+                                            <>
+                                              <Sun className="w-3.5 h-3.5" />
+                                              <span>Wake?</span>
+                                            </>
+                                          ) : (
+                                            <>
+                                              <span className="tracking-tighter font-mono font-bold">zZz</span>
+                                              <span>Hibernate?</span>
+                                            </>
+                                          )}
+                                        </button>
+                                      ) : (
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            triggerConfirmAction('hibernate', () => {
+                                              onHibernateSkill(editingSkill.id);
+                                              setEditingSkill(null);
+                                            })
+                                          }
+                                          className="p-2 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-neutral-400 hover:text-purple-400 active:scale-95 transition flex items-center justify-center shadow-sm font-mono font-bold text-xs"
+                                          title={editingSkill.isHibernated ? 'Wake up skill' : 'Hibernate skill (zZz)'}
+                                        >
+                                          {editingSkill.isHibernated ? (
+                                            <Sun className="w-4 h-4 text-purple-300" />
+                                          ) : (
+                                            <span className="tracking-tighter">zZz</span>
+                                          )}
+                                        </button>
+                                      )}
 
                                       {/* Pipe divider */}
                                       <div className="h-4 w-[1px] bg-neutral-800" />
 
                                       {/* 4. Delete Button with Tap Confirmation Safety */}
-                                      {confirmDeleteSkillId === editingSkill.id ? (
+                                      {activeConfirmAction === 'delete' ? (
                                         <button
                                           type="button"
-                                          onClick={() => handleDeleteWithConfirm(editingSkill.id)}
-                                          className="px-2.5 py-1.5 rounded-xl bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/50 text-[11px] font-bold flex items-center gap-1 animate-in fade-in shadow-sm"
+                                          onClick={() =>
+                                            triggerConfirmAction('delete', () => {
+                                              setEditingSkill(null);
+                                              onDeleteSkill(editingSkill.id);
+                                            })
+                                          }
+                                          className="px-3 py-1.5 rounded-xl bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/50 text-[11px] font-bold flex items-center gap-1.5 animate-in fade-in shadow-sm"
                                           title="Click again to permanently delete"
                                         >
+                                          <Trash2 className="w-3.5 h-3.5" />
                                           <span>Delete?</span>
                                         </button>
                                       ) : (
                                         <button
                                           type="button"
-                                          onClick={() => handleDeleteWithConfirm(editingSkill.id)}
+                                          onClick={() =>
+                                            triggerConfirmAction('delete', () => {
+                                              setEditingSkill(null);
+                                              onDeleteSkill(editingSkill.id);
+                                            })
+                                          }
                                           className="p-2 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-neutral-400 hover:text-red-400 active:scale-95 transition flex items-center justify-center shadow-sm"
                                           title="Delete Skill"
                                         >
@@ -938,7 +1154,6 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
                                       )}
                                     </div>
                                   </div>
-
                                   <div className="flex gap-2 pt-1">
                                     <button
                                       type="button"
