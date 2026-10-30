@@ -33,6 +33,7 @@ import { SkillNotesDialog } from './components/SkillNotesDialog';
 import { PersonalBestsTooltip } from './components/PersonalBestsTooltip';
 import { StreakCalendarTooltip } from './components/StreakCalendarTooltip';
 import { TempoRampModal } from './components/TempoRampModal';
+import { wakeLockManager } from './utils/wakeLock';
 
 const TIMBRE_CONFIG: Record<MetronomeTimbre, { name: string; description: string }> = {
   woodblock: { name: 'Woodblock', description: 'Warm acoustic woodblock with 2kHz transient' },
@@ -198,52 +199,16 @@ export default function App() {
     }
   }, [timbre]);
 
-  // Keep screen awake while metronome is actively playing (Screen Wake Lock API)
+  // Synchronize screen wake lock with isPlaying state
   useEffect(() => {
-    let wakeLock: WakeLockSentinel | null = null;
-    let isCancelled = false;
-
-    const acquireLock = async () => {
-      if (!('wakeLock' in navigator)) return;
-      try {
-        wakeLock = await navigator.wakeLock.request('screen');
-        wakeLock.addEventListener('release', () => {
-          wakeLock = null;
-        });
-      } catch (err) {
-        // May fail if tab is in background or low battery mode
-        console.warn('Wake Lock request error:', err);
-      }
-    };
-
-    const releaseLock = async () => {
-      if (wakeLock) {
-        try {
-          await wakeLock.release();
-        } catch {
-          // Ignore release errors
-        }
-        wakeLock = null;
-      }
-    };
-
-    const handleVisibilityChange = async () => {
-      if (document.visibilityState === 'visible' && isPlaying && !wakeLock && !isCancelled) {
-        await acquireLock();
-      }
-    };
-
     if (isPlaying) {
-      acquireLock();
-      document.addEventListener('visibilitychange', handleVisibilityChange);
+      wakeLockManager.request();
     } else {
-      releaseLock();
+      wakeLockManager.release();
     }
 
     return () => {
-      isCancelled = true;
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      releaseLock();
+      wakeLockManager.release();
     };
   }, [isPlaying]);
 
@@ -321,6 +286,8 @@ export default function App() {
 
   // 1. Cold Start tap -> begins routine on the top of the list (Skill 0) at 80% PB
   const handleColdStart = async () => {
+    // Synchronously request wake lock during cold start gesture
+    wakeLockManager.request();
     setIsColdStart(false);
     setCompletedSkillIds(new Set());
 
@@ -353,9 +320,12 @@ export default function App() {
   const handleTogglePlay = async () => {
     if (!engineRef.current) return;
     if (isPlaying) {
+      wakeLockManager.release();
       engineRef.current.stop();
       setIsPlaying(false);
     } else {
+      // Synchronously request wake lock during user interaction
+      wakeLockManager.request();
       await engineRef.current.unlockAudio();
       engineRef.current.start();
       setIsPlaying(true);
@@ -373,6 +343,7 @@ export default function App() {
 
   // Exit Option 1: Log & Exit
   const handleLogAndExit = () => {
+    wakeLockManager.release();
     if (currentSkill) {
       const durationSeconds = Math.max(10, Math.round((Date.now() - sessionStartTimeRef.current) / 1000));
       const hasPreviousRuns = storageManager.getSkillHistory(currentSkill.id).length > 0;
@@ -406,6 +377,7 @@ export default function App() {
 
   // Exit Option 2: Discard & Exit
   const handleDiscardAndExit = () => {
+    wakeLockManager.release();
     if (engineRef.current) {
       engineRef.current.stop();
     }
@@ -416,6 +388,7 @@ export default function App() {
 
   // Exit Option 3: Cancel (Keep Practicing)
   const handleCancelExit = () => {
+    wakeLockManager.request();
     setIsExitModalOpen(false);
     if (engineRef.current) {
       engineRef.current.start();
@@ -558,12 +531,15 @@ export default function App() {
 
     // Friction-free auto loop: Advance immediately to next active skill
     if (activeSkillIndex < updatedActive.length - 1) {
+      // Re-assert wake lock directly from user confirmation action
+      wakeLockManager.request();
       const nextIndex = activeSkillIndex + 1;
       setActiveSkillIndex(nextIndex);
       // Next skill automatically starts at 80% of its PB!
       loadSkill(updatedActive[nextIndex], true);
     } else {
       // Reached the end of the daily routine!
+      wakeLockManager.release();
       setIsRoutineFinished(true);
     }
   };
