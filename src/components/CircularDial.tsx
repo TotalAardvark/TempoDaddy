@@ -7,9 +7,10 @@ interface CircularDialProps {
   bpm: number;
   minBpm?: number;
   maxBpm?: number;
-  onBpmChange: (newBpm: number) => void;
+  onBpmChange: (newBpm: number | ((prev: number) => number)) => void;
   lastTick: MetronomeTickEvent | null;
   isPlaying: boolean;
+  isRampActive?: boolean;
   onOpenTempoRamp?: () => void;
 }
 
@@ -20,21 +21,26 @@ export const CircularDial: React.FC<CircularDialProps> = ({
   onBpmChange,
   lastTick,
   isPlaying,
+  isRampActive = false,
   onOpenTempoRamp,
 }) => {
   const dialRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const startDragInfo = useRef<{ startY: number; startBpm: number; startAngle: number } | null>(null);
+  const dragTracking = useRef<{
+    lastAngle: number;
+    accumulatedAngle: number;
+    currentBpm: number;
+  } | null>(null);
 
   // Normalize BPM to an angle between -135deg and +135deg (270 degree arc)
   const bpmRatio = (bpm - minBpm) / (maxBpm - minBpm);
 
   const handleBpmStep = (delta: number) => {
-    const nextBpm = Math.max(minBpm, Math.min(maxBpm, bpm + delta));
-    onBpmChange(nextBpm);
+    onBpmChange((prev) => Math.max(minBpm, Math.min(maxBpm, prev + delta)));
   };
 
   // Calculate angle from center of dial to point (x, y)
+  // Top is 0°, clockwise is positive (0° to 360°)
   const getAngleFromCenter = (clientX: number, clientY: number): number => {
     if (!dialRef.current) return 0;
     const rect = dialRef.current.getBoundingClientRect();
@@ -56,25 +62,40 @@ export const CircularDial: React.FC<CircularDialProps> = ({
     setIsDragging(true);
 
     const initialAngle = getAngleFromCenter(e.clientX, e.clientY);
-    startDragInfo.current = {
-      startY: e.clientY,
-      startBpm: bpm,
-      startAngle: initialAngle,
+    dragTracking.current = {
+      lastAngle: initialAngle,
+      accumulatedAngle: 0,
+      currentBpm: bpm,
     };
   };
 
   const handlePointerMove = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
-      if (!isDragging || !startDragInfo.current) return;
+      if (!isDragging || !dragTracking.current) return;
 
-      // Vertical drag delta allows rapid scrub
-      const deltaY = startDragInfo.current.startY - e.clientY;
-      const bpmDelta = Math.round(deltaY / 2.5); // scrub sensitivity
+      const currentAngle = getAngleFromCenter(e.clientX, e.clientY);
+      let deltaAngle = currentAngle - dragTracking.current.lastAngle;
 
-      let targetBpm = startDragInfo.current.startBpm + bpmDelta;
-      targetBpm = Math.max(minBpm, Math.min(maxBpm, targetBpm));
+      // Handle wrap-around across 0° / 360° boundary
+      if (deltaAngle > 180) deltaAngle -= 360;
+      else if (deltaAngle < -180) deltaAngle += 360;
 
-      onBpmChange(targetBpm);
+      dragTracking.current.lastAngle = currentAngle;
+      dragTracking.current.accumulatedAngle += deltaAngle;
+
+      // 4 degrees of circular swipe = 1 BPM (90 BPM per full 360° rotation)
+      const DEGREES_PER_BPM = 4;
+      const bpmDelta = Math.trunc(dragTracking.current.accumulatedAngle / DEGREES_PER_BPM);
+
+      if (bpmDelta !== 0) {
+        dragTracking.current.accumulatedAngle -= bpmDelta * DEGREES_PER_BPM;
+        dragTracking.current.currentBpm = Math.max(
+          minBpm,
+          Math.min(maxBpm, dragTracking.current.currentBpm + bpmDelta)
+        );
+        const nextBpm = dragTracking.current.currentBpm;
+        onBpmChange(nextBpm);
+      }
     },
     [isDragging, maxBpm, minBpm, onBpmChange]
   );
@@ -83,7 +104,7 @@ export const CircularDial: React.FC<CircularDialProps> = ({
     if (isDragging) {
       dialRef.current?.releasePointerCapture(e.pointerId);
       setIsDragging(false);
-      startDragInfo.current = null;
+      dragTracking.current = null;
     }
   };
 
@@ -94,7 +115,7 @@ export const CircularDial: React.FC<CircularDialProps> = ({
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
       const delta = e.deltaY < 0 ? 1 : -1;
-      onBpmChange(Math.max(minBpm, Math.min(maxBpm, bpm + delta)));
+      onBpmChange((prev) => Math.max(minBpm, Math.min(maxBpm, prev + delta)));
     };
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
@@ -215,7 +236,7 @@ export const CircularDial: React.FC<CircularDialProps> = ({
             Swipe to adjust
           </span>
 
-          {/* Outlined Tempo Ramp Button */}
+          {/* Outlined Tempo Ramp Button - glows amber when active */}
           <button
             type="button"
             onPointerDown={(e) => e.stopPropagation()}
@@ -223,52 +244,56 @@ export const CircularDial: React.FC<CircularDialProps> = ({
               e.stopPropagation();
               onOpenTempoRamp?.();
             }}
-            className="mt-1 px-2.5 py-0.5 text-[9px] uppercase font-mono font-semibold tracking-wider text-neutral-500 hover:text-neutral-300 border border-neutral-700/80 hover:border-neutral-500 rounded-full transition active:scale-95 cursor-pointer bg-neutral-900/60"
-            title="Configure Automatic Tempo Ramp"
+            className={`mt-1 px-2.5 py-0.5 text-[9px] uppercase font-mono font-semibold tracking-wider rounded-full transition active:scale-95 cursor-pointer ${
+              isRampActive
+                ? 'bg-amber-500/20 text-amber-300 border border-amber-400 shadow-md shadow-amber-500/40 ring-1 ring-amber-400/50 animate-pulse'
+                : 'text-neutral-500 hover:text-neutral-300 border border-neutral-700/80 hover:border-neutral-500 bg-neutral-900/60'
+            }`}
+            title={isRampActive ? 'Tempo Ramp Active - Tap to Configure' : 'Configure Automatic Tempo Ramp'}
           >
             Tempo Ramp
           </button>
         </div>
 
-        {/* Left Side Controls: -1 and -5 Buttons */}
-        <div className="absolute left-0 -translate-x-4 flex flex-col items-center gap-2">
+        {/* Left Side Controls: -1 and -3 Buttons */}
+        <div className="absolute left-0 -translate-x-5 sm:-translate-x-6 flex flex-col items-center gap-2.5">
           <button
             type="button"
             onClick={() => handleBpmStep(-1)}
             aria-label="Decrease BPM by 1"
             title="Decrease by 1 BPM"
-            className="w-11 h-11 rounded-full bg-neutral-800 hover:bg-neutral-700 active:bg-neutral-600 border border-neutral-700 text-white flex items-center justify-center shadow-lg transition-transform active:scale-90"
+            className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-neutral-800/95 hover:bg-neutral-700 active:bg-neutral-600 border border-neutral-700 text-white flex items-center justify-center shadow-lg transition-transform active:scale-95 touch-manipulation cursor-pointer"
           >
-            <Minus className="w-5 h-5 text-neutral-200" />
+            <Minus className="w-7 h-7 sm:w-8 sm:h-8 text-neutral-200 stroke-[2.5]" />
           </button>
           <button
             type="button"
             onClick={() => handleBpmStep(-3)}
             aria-label="Decrease BPM by 3"
             title="Decrease by 3 BPM"
-            className="px-2.5 py-1 text-xs font-mono font-bold rounded-lg bg-neutral-800/90 hover:bg-neutral-700 active:bg-neutral-600 border border-neutral-700/80 text-neutral-300 hover:text-white shadow transition-transform active:scale-90"
+            className="w-14 h-10 sm:w-16 sm:h-12 rounded-2xl bg-neutral-800/90 hover:bg-neutral-700 active:bg-neutral-600 border border-neutral-700/80 text-neutral-300 hover:text-white flex items-center justify-center text-base sm:text-lg font-mono font-black shadow-lg transition-transform active:scale-95 touch-manipulation cursor-pointer"
           >
             -3
           </button>
         </div>
 
         {/* Right Side Controls: +1 and +3 Buttons */}
-        <div className="absolute right-0 translate-x-4 flex flex-col items-center gap-2">
+        <div className="absolute right-0 translate-x-5 sm:translate-x-6 flex flex-col items-center gap-2.5">
           <button
             type="button"
             onClick={() => handleBpmStep(1)}
             aria-label="Increase BPM by 1"
             title="Increase by 1 BPM"
-            className="w-11 h-11 rounded-full bg-neutral-800 hover:bg-neutral-700 active:bg-neutral-600 border border-neutral-700 text-white flex items-center justify-center shadow-lg transition-transform active:scale-90"
+            className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-neutral-800/95 hover:bg-neutral-700 active:bg-neutral-600 border border-neutral-700 text-white flex items-center justify-center shadow-lg transition-transform active:scale-95 touch-manipulation cursor-pointer"
           >
-            <Plus className="w-5 h-5 text-neutral-200" />
+            <Plus className="w-7 h-7 sm:w-8 sm:h-8 text-neutral-200 stroke-[2.5]" />
           </button>
           <button
             type="button"
             onClick={() => handleBpmStep(3)}
             aria-label="Increase BPM by 3"
             title="Increase by 3 BPM"
-            className="px-2.5 py-1 text-xs font-mono font-bold rounded-lg bg-neutral-800/90 hover:bg-neutral-700 active:bg-neutral-600 border border-neutral-700/80 text-neutral-300 hover:text-white shadow transition-transform active:scale-90"
+            className="w-14 h-10 sm:w-16 sm:h-12 rounded-2xl bg-neutral-800/90 hover:bg-neutral-700 active:bg-neutral-600 border border-neutral-700/80 text-neutral-300 hover:text-white flex items-center justify-center text-base sm:text-lg font-mono font-black shadow-lg transition-transform active:scale-95 touch-manipulation cursor-pointer"
           >
             +3
           </button>

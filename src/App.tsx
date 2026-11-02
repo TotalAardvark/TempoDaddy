@@ -136,6 +136,8 @@ export default function App() {
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [lastTick, setLastTick] = useState<MetronomeTickEvent | null>(null);
 
+  const [isRampActive, setIsRampActive] = useState<boolean>(false);
+
   // Audio Engine instance (persists across renders)
   const engineRef = useRef<MetronomeEngine | null>(null);
   const sessionStartTimeRef = useRef<number>(Date.now());
@@ -167,6 +169,7 @@ export default function App() {
 
       if (progress >= 1) {
         ramp.active = false;
+        setIsRampActive(false);
       }
       return nextBpm;
     });
@@ -242,6 +245,7 @@ export default function App() {
   const handleUserBpmChange = useCallback((newBpm: number | ((prev: number) => number)) => {
     if (rampStateRef.current.active) {
       rampStateRef.current.active = false;
+      setIsRampActive(false);
     }
     setBpm(newBpm);
   }, []);
@@ -258,13 +262,15 @@ export default function App() {
     sessionStartTimeRef.current = Date.now();
 
     // Configure automatic ramp (16 measures = 64 beats by default)
+    const rampActive = tempoRampSettings.enabled && rampTarget > warmup;
     rampStateRef.current = {
-      active: tempoRampSettings.enabled && rampTarget > warmup,
+      active: rampActive,
       startBpm: warmup,
       targetBpm: rampTarget,
       totalBeats,
       completedBeats: 0,
     };
+    setIsRampActive(rampActive);
 
     if (engineRef.current) {
       engineRef.current.setBpm(warmup);
@@ -1246,6 +1252,7 @@ export default function App() {
             onBpmChange={handleUserBpmChange}
             lastTick={lastTick}
             isPlaying={isPlaying}
+            isRampActive={isRampActive}
             onOpenTempoRamp={() => setIsTempoRampModalOpen(true)}
           />
 

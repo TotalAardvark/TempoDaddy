@@ -70,7 +70,7 @@ export const LifetimeProgressionModal: React.FC<LifetimeProgressionModalProps> =
     const minVal = Math.min(...bpms, startingBpm || bpms[0]);
     const maxVal = Math.max(...bpms, peakBpm);
 
-    const gain = latestBpm - firstBpm;
+    const gain = peakBpm - firstBpm;
     const totalPracticeSeconds = history.reduce((acc, h) => acc + (h.durationSeconds || 0), 0);
 
     // Provide comfortable padding for Y axis
