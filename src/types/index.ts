@@ -1,3 +1,6 @@
+export const MIN_BPM = 30;
+export const MAX_BPM = 300;
+
 export type Subdivision = '1/4' | '1/8' | '1/16';
 
 export type MetronomeTimbre = 'woodblock' | 'beep' | 'loud';

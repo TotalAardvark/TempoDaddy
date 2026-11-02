@@ -201,7 +201,10 @@ export async function createEmptyCloudProfile(): Promise<{ success: boolean; pro
 /**
  * Loads an existing cloud profile by its 2-word code and overrides/updates local data.
  */
-export async function loadCloudProfile(code: string): Promise<{ success: boolean; profileId?: string; error?: string }> {
+export async function loadCloudProfile(
+  code: string,
+  options?: { onlyIfNewer?: boolean }
+): Promise<{ success: boolean; profileId?: string; unchanged?: boolean; error?: string }> {
   try {
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       return { success: false, error: 'You are offline. Connect to the internet to load a profile.' };
@@ -221,6 +224,18 @@ export async function loadCloudProfile(code: string): Promise<{ success: boolean
     }
 
     const data = snap.data() as CloudProfileData;
+
+    // If checking in the background (e.g. on focus/resume), skip overwriting local storage
+    // when local changes are pending/in-flight or when the remote timestamp hasn't changed.
+    if (options?.onlyIfNewer) {
+      if (hasPendingSync()) {
+        return { success: true, profileId: cleanCode, unchanged: true };
+      }
+      const lastSynced = getLastSyncedAt();
+      if (lastSynced && data.updatedAt && data.updatedAt <= lastSynced) {
+        return { success: true, profileId: cleanCode, unchanged: true };
+      }
+    }
 
     // Apply cloud data to local storage
     if (Array.isArray(data.skills)) {
@@ -257,10 +272,11 @@ export async function loadCloudProfile(code: string): Promise<{ success: boolean
       storageManager.saveMetronomeTimbre(data.timbre);
     }
 
+    hasUnsyncedLocalChanges = false;
     setStoredProfileId(cleanCode);
     setLastSyncedAt(data.updatedAt || new Date().toISOString());
 
-    return { success: true, profileId: cleanCode };
+    return { success: true, profileId: cleanCode, unchanged: false };
   } catch (err: unknown) {
     console.error('Error loading cloud profile:', err);
     return { success: false, error: getFriendlyErrorMessage(err, 'Failed to load profile from cloud.') };
@@ -271,6 +287,17 @@ export async function loadCloudProfile(code: string): Promise<{ success: boolean
 export const linkExistingCode = loadCloudProfile;
 
 /**
+ * Debounced sync & in-flight state tracking to prevent race conditions
+ */
+let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+let isSyncInFlight = false;
+let hasUnsyncedLocalChanges = false;
+
+export function hasPendingSync(): boolean {
+  return debounceTimer !== null || isSyncInFlight || hasUnsyncedLocalChanges;
+}
+
+/**
  * Push current local state to the linked cloud profile
  */
 export async function syncLocalToCloud(): Promise<{ success: boolean; error?: string }> {
@@ -279,6 +306,7 @@ export async function syncLocalToCloud(): Promise<{ success: boolean; error?: st
     return { success: false, error: 'No profile ID linked.' };
   }
 
+  isSyncInFlight = true;
   try {
     const db = getDb();
     const now = new Date().toISOString();
@@ -293,28 +321,25 @@ export async function syncLocalToCloud(): Promise<{ success: boolean; error?: st
     };
 
     await setDoc(doc(db, 'profiles', profileId), data, { merge: true });
+    if (debounceTimer === null) {
+      hasUnsyncedLocalChanges = false;
+    }
     setLastSyncedAt(now);
     return { success: true };
   } catch (err: unknown) {
     console.error('Error syncing local data to cloud:', err);
     const message = err instanceof Error ? err.message : 'Failed to sync to cloud.';
     return { success: false, error: message };
+  } finally {
+    isSyncInFlight = false;
   }
-}
-
-/**
- * Debounced sync helper to prevent flooding Firebase with writes
- */
-let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-
-export function hasPendingSync(): boolean {
-  return debounceTimer !== null;
 }
 
 export function triggerDebouncedCloudSync(delayMs = 2500): void {
   const profileId = getStoredProfileId();
   if (!profileId) return;
 
+  hasUnsyncedLocalChanges = true;
   if (debounceTimer) {
     clearTimeout(debounceTimer);
   }
@@ -328,13 +353,15 @@ export function triggerDebouncedCloudSync(delayMs = 2500): void {
 }
 
 /**
- * Flush pending debounced cloud sync immediately (e.g. before unload)
+ * Flush pending debounced cloud sync immediately (e.g. before unload or on backgrounding)
  */
 export async function forceCloudSync(): Promise<{ success: boolean; error?: string }> {
-  if (!debounceTimer) {
+  if (!debounceTimer && !hasUnsyncedLocalChanges) {
     return { success: true };
   }
-  clearTimeout(debounceTimer);
-  debounceTimer = null;
+  if (debounceTimer) {
+    clearTimeout(debounceTimer);
+    debounceTimer = null;
+  }
   return syncLocalToCloud();
 }

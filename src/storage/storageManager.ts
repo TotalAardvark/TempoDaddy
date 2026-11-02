@@ -19,6 +19,23 @@ export const DEFAULT_RAMP_SETTINGS: TempoRampSettings = {
   enabled: true,
 };
 
+/**
+ * Formats a Date or ISO date string into a local YYYY-MM-DD date key.
+ */
+export function toLocalDateKey(dateInput: Date | string = new Date()): string {
+  if (typeof dateInput === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateInput)) {
+    return dateInput;
+  }
+  const d = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
+  if (Number.isNaN(d.getTime())) {
+    return typeof dateInput === 'string' ? dateInput.slice(0, 10) : '';
+  }
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 export const storageManager = {
   getSkills(): Skill[] {
     try {
@@ -317,12 +334,12 @@ export const storageManager = {
   },
 
   getTodayPracticedSkillIds(): string[] {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = toLocalDateKey();
     const sessions = this.getSessions();
     const practicedToday = new Set<string>();
 
     sessions.forEach((s) => {
-      if (s.date.slice(0, 10) === today) {
+      if (toLocalDateKey(s.date) === today) {
         practicedToday.add(s.skillId);
       }
     });
@@ -335,11 +352,16 @@ export const storageManager = {
     if (sessions.length === 0) return 0;
 
     const uniqueDates = Array.from(
-      new Set(sessions.map((s) => s.date.slice(0, 10)))
+      new Set(sessions.map((s) => toLocalDateKey(s.date)))
     ).sort().reverse();
 
-    const today = new Date().toISOString().slice(0, 10);
-    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    const todayDate = new Date();
+    todayDate.setHours(0, 0, 0, 0);
+    const yesterdayDate = new Date(todayDate);
+    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+
+    const today = toLocalDateKey(todayDate);
+    const yesterday = toLocalDateKey(yesterdayDate);
 
     // If neither today nor yesterday has practice, streak is 0
     if (!uniqueDates.includes(today) && !uniqueDates.includes(yesterday)) {
@@ -347,13 +369,10 @@ export const storageManager = {
     }
 
     let streak = 0;
-    let checkDate = new Date();
-    if (!uniqueDates.includes(today)) {
-      checkDate = new Date(Date.now() - 86400000);
-    }
+    const checkDate = new Date(uniqueDates.includes(today) ? todayDate : yesterdayDate);
 
     while (true) {
-      const dateStr = checkDate.toISOString().slice(0, 10);
+      const dateStr = toLocalDateKey(checkDate);
       if (uniqueDates.includes(dateStr)) {
         streak++;
         checkDate.setDate(checkDate.getDate() - 1);
@@ -427,7 +446,7 @@ export const storageManager = {
 
   getPracticedDates(): string[] {
     const sessions = this.getSessions();
-    return Array.from(new Set(sessions.map((s) => s.date.slice(0, 10))));
+    return Array.from(new Set(sessions.map((s) => toLocalDateKey(s.date))));
   },
 
   toggleHibernate(skillId: string): Skill[] {
@@ -489,6 +508,8 @@ export const storageManager = {
       playlists: this.getPlaylists(),
       activePlaylistId: this.getActivePlaylistId(),
       sessions: this.getSessions(),
+      tempoRampSettings: this.getTempoRampSettings(),
+      timbre: this.getMetronomeTimbre(),
       exportedAt: new Date().toISOString(),
     }, null, 2);
   },
@@ -503,10 +524,18 @@ export const storageManager = {
         this.savePlaylists(data.playlists);
       }
       if (data.activePlaylistId && typeof data.activePlaylistId === 'string') {
-        this.setActivePlaylistId(data.activePlaylistId);
+        this.setActivePlaylistId(data.activePlaylistId, false);
       }
+      // Ensure playlists reconcile against imported skills
+      this.getPlaylists();
       if (Array.isArray(data.sessions)) {
         localStorage.setItem(SESSIONS_KEY, JSON.stringify(data.sessions));
+      }
+      if (data.tempoRampSettings) {
+        this.saveTempoRampSettings(data.tempoRampSettings);
+      }
+      if (data.timbre) {
+        this.saveMetronomeTimbre(data.timbre);
       }
       return true;
     } catch (e) {

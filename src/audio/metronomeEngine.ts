@@ -1,4 +1,4 @@
-import type { Subdivision, MetronomeTimbre } from '../types';
+import { MIN_BPM, MAX_BPM, type Subdivision, type MetronomeTimbre } from '../types';
 
 export interface MetronomeTickEvent {
   tickIndex: number;
@@ -25,6 +25,8 @@ export class MetronomeEngine {
   private scheduleAheadTime: number = 0.1; // How far ahead to schedule audio (seconds)
 
   private onTickCallback: ((event: MetronomeTickEvent) => void) | null = null;
+  private onQuarterBeatScheduleCallback: (() => number | void) | null = null;
+  private visualTimerIds: number[] = [];
 
   constructor(
     bpm = 100,
@@ -40,6 +42,10 @@ export class MetronomeEngine {
 
   public setOnTick(callback: (event: MetronomeTickEvent) => void) {
     this.onTickCallback = callback;
+  }
+
+  public setOnQuarterBeatSchedule(callback: (() => number | void) | null) {
+    this.onQuarterBeatScheduleCallback = callback;
   }
 
   public setTimbre(timbre: MetronomeTimbre) {
@@ -91,7 +97,7 @@ export class MetronomeEngine {
   }
 
   public setBpm(newBpm: number) {
-    this.bpm = Math.max(30, Math.min(320, Math.round(newBpm)));
+    this.bpm = Math.max(MIN_BPM, Math.min(MAX_BPM, Math.round(newBpm)));
   }
 
   public getBpm(): number {
@@ -99,10 +105,15 @@ export class MetronomeEngine {
   }
 
   public setSubdivision(subdivision: Subdivision, isTriplet: boolean) {
+    if (this.subdivision === subdivision && this.isTriplet === isTriplet) {
+      return;
+    }
+    const oldSubdivisions = this.getSubdivisionsPerBeat();
+    const currentBeat = Math.floor(this.currentTick / oldSubdivisions);
     this.subdivision = subdivision;
     this.isTriplet = isTriplet;
-    // reset tick position to prevent out-of-bounds glitches
-    this.currentTick = 0;
+    const newSubdivisions = this.getSubdivisionsPerBeat();
+    this.currentTick = (currentBeat * newSubdivisions) % this.getTotalTicksPerMeasure();
   }
 
   public async start() {
@@ -124,6 +135,10 @@ export class MetronomeEngine {
       clearInterval(this.timerId);
       this.timerId = null;
     }
+    for (const id of this.visualTimerIds) {
+      clearTimeout(id);
+    }
+    this.visualTimerIds = [];
   }
 
   public toggle(): boolean {
@@ -144,6 +159,13 @@ export class MetronomeEngine {
     if (!this.audioCtx || !this.isRunning) return;
 
     while (this.nextTickTime < this.audioCtx.currentTime + this.scheduleAheadTime) {
+      const ticksPerBeat = this.getSubdivisionsPerBeat();
+      if (this.currentTick % ticksPerBeat === 0 && this.onQuarterBeatScheduleCallback) {
+        const nextBpm = this.onQuarterBeatScheduleCallback();
+        if (typeof nextBpm === 'number') {
+          this.setBpm(nextBpm);
+        }
+      }
       this.scheduleNote(this.currentTick, this.nextTickTime);
       this.advanceTick();
     }
@@ -165,23 +187,26 @@ export class MetronomeEngine {
     const totalTicks = this.getTotalTicksPerMeasure();
     const isDownbeat = tickIndex === 0;
     const isQuarterBeat = tickIndex % ticksPerBeat === 0;
+    const scheduledBpm = this.bpm;
 
     this.scheduleSound(isDownbeat, isQuarterBeat, time, this.timbre);
 
     // Trigger visual callback synchronized to when the sound actually plays
     if (this.onTickCallback) {
       const timeUntilPlay = Math.max(0, (time - this.audioCtx.currentTime) * 1000);
-      window.setTimeout(() => {
+      const timerId = window.setTimeout(() => {
+        this.visualTimerIds = this.visualTimerIds.filter((id) => id !== timerId);
         if (this.isRunning && this.onTickCallback) {
           this.onTickCallback({
             tickIndex,
             totalTicksPerMeasure: totalTicks,
             isDownbeat,
             isQuarterBeat,
-            bpm: this.bpm,
+            bpm: scheduledBpm,
           });
         }
       }, timeUntilPlay);
+      this.visualTimerIds.push(timerId);
     }
   }
 
@@ -273,8 +298,8 @@ export class MetronomeEngine {
         noiseFilter.connect(noiseGain);
         noiseGain.connect(this.audioCtx.destination);
 
-        noiseSource.start(time);
-        noiseSource.stop(time + noiseDuration + 0.003);
+        const randomOffset = Math.random() * 0.9;
+        noiseSource.start(time, randomOffset, noiseDuration + 0.003);
       }
     } else if (timbre === 'beep') {
       // Sound 2: Digital Beep (Clean high-cut synth pulse)

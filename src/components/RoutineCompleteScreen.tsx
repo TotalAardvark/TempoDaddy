@@ -50,13 +50,22 @@ export const RoutineCompleteScreen: React.FC<RoutineCompleteScreenProps> = ({
   const activeSkills = useMemo(() => skills.filter((s) => !s.isHibernated), [skills]);
   const hibernatedSkills = useMemo(() => skills.filter((s) => s.isHibernated), [skills]);
 
+  // Precompute skill history once per skills update instead of parsing localStorage on every render row
+  const historyBySkillId = useMemo(() => {
+    const map = new Map<string, PracticeSessionLog[]>();
+    skills.forEach((skill) => {
+      map.set(skill.id, storageManager.getSkillHistory(skill.id));
+    });
+    return map;
+  }, [skills]);
+
   // Compute session metrics: number of new PBs achieved during this session
   const sessionPbCount = useMemo(() => {
     let count = 0;
     activeSkills.forEach((skill) => {
       const isCompleted = completedSkillIds ? completedSkillIds.has(skill.id) : true;
       if (!isCompleted) return;
-      const history = storageManager.getSkillHistory(skill.id);
+      const history = historyBySkillId.get(skill.id) ?? [];
       const mostRecent = [...todaySessions].reverse().find((s) => s.skillId === skill.id) ||
         (history.length > 0 ? history[history.length - 1] : null);
       if (mostRecent) {
@@ -67,7 +76,7 @@ export const RoutineCompleteScreen: React.FC<RoutineCompleteScreenProps> = ({
       }
     });
     return count;
-  }, [activeSkills, completedSkillIds, todaySessions]);
+  }, [activeSkills, completedSkillIds, historyBySkillId, todaySessions]);
 
   // Total Lifetime PB count
   const totalPbCount = pbStats?.allTime ?? storageManager.getPbStats().allTime;
@@ -200,7 +209,7 @@ export const RoutineCompleteScreen: React.FC<RoutineCompleteScreenProps> = ({
             const isCompletedInSession = completedSkillIds ? completedSkillIds.has(skill.id) : true;
             const isSkipped = !isCompletedInSession;
 
-            const history = storageManager.getSkillHistory(skill.id);
+            const history = historyBySkillId.get(skill.id) ?? [];
             // If completed in this session, retrieve the most recent session from today or history
             const mostRecentSession = isSkipped
               ? null
