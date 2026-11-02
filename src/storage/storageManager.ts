@@ -386,8 +386,9 @@ export const storageManager = {
 
   getWeeklyPbCount(): number {
     const sessions = this.getSessions();
-    const oneWeekAgo = Date.now() - 7 * 86400000;
-    return sessions.filter((s) => s.isPersonalBest && new Date(s.date).getTime() >= oneWeekAgo).length;
+    const now = new Date();
+    const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay()).getTime();
+    return sessions.filter((s) => s.isPersonalBest && new Date(s.date).getTime() >= startOfWeek).length;
   },
 
   getPbStats(): {
@@ -399,12 +400,14 @@ export const storageManager = {
   } {
     const sessions = this.getSessions();
     const now = new Date();
-    const oneWeekAgo = Date.now() - 7 * 86400000;
+    // Sunday at 00:00:00 as start of the current week
+    const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay()).getTime();
+    // 1st of the current month at 00:00:00
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
     const resetDate = localStorage.getItem('tempo_coach_pb_reset_date');
     const resetTime = resetDate ? new Date(resetDate).getTime() : 0;
 
-    const thisWeek = sessions.filter((s) => s.isPersonalBest && new Date(s.date).getTime() >= oneWeekAgo).length;
+    const thisWeek = sessions.filter((s) => s.isPersonalBest && new Date(s.date).getTime() >= startOfWeek).length;
     const thisMonth = sessions.filter((s) => s.isPersonalBest && new Date(s.date).getTime() >= startOfMonth).length;
     const allTime = sessions.filter((s) => s.isPersonalBest).length;
     const sinceReset = resetDate

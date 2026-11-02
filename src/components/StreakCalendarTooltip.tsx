@@ -4,6 +4,7 @@ import { Flame, X } from 'lucide-react';
 interface StreakCalendarTooltipProps {
   isOpen: boolean;
   onClose: () => void;
+  triggerRef?: React.RefObject<HTMLElement | null>;
   streak: number;
   practicedDates: string[];
 }
@@ -11,6 +12,7 @@ interface StreakCalendarTooltipProps {
 export const StreakCalendarTooltip: React.FC<StreakCalendarTooltipProps> = ({
   isOpen,
   onClose,
+  triggerRef,
   streak,
   practicedDates,
 }) => {
@@ -23,8 +25,13 @@ export const StreakCalendarTooltip: React.FC<StreakCalendarTooltipProps> = ({
       if (e.key === 'Escape') onClose();
     };
 
-    const handleClickOutside = (e: MouseEvent) => {
-      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as Node;
+      if (
+        popoverRef.current &&
+        !popoverRef.current.contains(target) &&
+        (!triggerRef?.current || !triggerRef.current.contains(target))
+      ) {
         onClose();
       }
     };
@@ -32,14 +39,16 @@ export const StreakCalendarTooltip: React.FC<StreakCalendarTooltipProps> = ({
     window.addEventListener('keydown', handleKeyDown);
     const timer = setTimeout(() => {
       window.addEventListener('mousedown', handleClickOutside);
+      window.addEventListener('touchstart', handleClickOutside);
     }, 10);
 
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('touchstart', handleClickOutside);
       clearTimeout(timer);
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, triggerRef]);
 
   // Compute 4 weeks of days (3 weeks into past + current week = 28 days)
   const daysGrid = useMemo(() => {

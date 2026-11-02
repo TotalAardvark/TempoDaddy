@@ -5,6 +5,7 @@ import type { PbDisplayRange } from '../types';
 interface PersonalBestsTooltipProps {
   isOpen: boolean;
   onClose: () => void;
+  triggerRef?: React.RefObject<HTMLElement | null>;
   stats?: {
     thisWeek: number;
     thisMonth: number;
@@ -19,6 +20,7 @@ interface PersonalBestsTooltipProps {
 export const PersonalBestsTooltip: React.FC<PersonalBestsTooltipProps> = ({
   isOpen,
   onClose,
+  triggerRef,
   stats,
   displayRange,
   onDisplayRangeChange,
@@ -40,24 +42,31 @@ export const PersonalBestsTooltip: React.FC<PersonalBestsTooltipProps> = ({
       if (e.key === 'Escape') onClose();
     };
 
-    const handleClickOutside = (e: MouseEvent) => {
-      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as Node;
+      if (
+        popoverRef.current &&
+        !popoverRef.current.contains(target) &&
+        (!triggerRef?.current || !triggerRef.current.contains(target))
+      ) {
         onClose();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
-    // Slight delay to prevent immediate closing from trigger click
+    // Slight delay to prevent immediate closing from trigger click/tap
     const timer = setTimeout(() => {
       window.addEventListener('mousedown', handleClickOutside);
+      window.addEventListener('touchstart', handleClickOutside);
     }, 10);
 
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('touchstart', handleClickOutside);
       clearTimeout(timer);
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, triggerRef]);
 
   if (!isOpen) return null;
 
