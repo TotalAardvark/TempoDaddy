@@ -1,14 +1,16 @@
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { getDb } from './firebase';
 import { generateWordCode } from './wordList';
-import { storageManager } from './storageManager';
-import type { Skill, PracticeSessionLog, TempoRampSettings, MetronomeTimbre } from '../types';
+import { storageManager, DEFAULT_PLAYLIST_NAME } from './storageManager';
+import type { Skill, Playlist, PracticeSessionLog, TempoRampSettings, MetronomeTimbre } from '../types';
 
 export const PROFILE_ID_KEY = 'tempo_coach_profile_id';
 export const LAST_SYNCED_KEY = 'tempo_coach_last_synced_at';
 
 export interface CloudProfileData {
   skills: Skill[];
+  playlists?: Playlist[];
+  activePlaylistId?: string;
   sessions: PracticeSessionLog[];
   tempoRampSettings?: TempoRampSettings;
   timbre?: MetronomeTimbre;
@@ -112,6 +114,8 @@ export async function createCloudProfile(): Promise<{ success: boolean; profileI
     const now = new Date().toISOString();
     const data: CloudProfileData = {
       skills: storageManager.getSkills(),
+      playlists: storageManager.getPlaylists(),
+      activePlaylistId: storageManager.getActivePlaylistId(),
       sessions: storageManager.getSessions(),
       tempoRampSettings: storageManager.getTempoRampSettings(),
       timbre: storageManager.getMetronomeTimbre(),
@@ -161,8 +165,17 @@ export async function createEmptyCloudProfile(): Promise<{ success: boolean; pro
     }
 
     const now = new Date().toISOString();
+    const emptyDefaultPlaylist: Playlist = {
+      id: 'default_lets_go',
+      name: DEFAULT_PLAYLIST_NAME,
+      skillIds: [],
+      createdAt: now,
+      lastPlayedAt: now,
+    };
     const data: CloudProfileData = {
       skills: [],
+      playlists: [emptyDefaultPlaylist],
+      activePlaylistId: emptyDefaultPlaylist.id,
       sessions: [],
       tempoRampSettings: storageManager.getTempoRampSettings(),
       timbre: storageManager.getMetronomeTimbre(),
@@ -172,6 +185,8 @@ export async function createEmptyCloudProfile(): Promise<{ success: boolean; pro
 
     await setDoc(doc(db, 'profiles', uniqueCode), data);
     storageManager.saveSkills([]);
+    storageManager.savePlaylists([emptyDefaultPlaylist]);
+    storageManager.setActivePlaylistId(emptyDefaultPlaylist.id, false);
     storageManager.saveSessions([]);
     setStoredProfileId(uniqueCode);
     setLastSyncedAt(now);
@@ -211,8 +226,29 @@ export async function loadCloudProfile(code: string): Promise<{ success: boolean
     if (Array.isArray(data.skills)) {
       storageManager.saveSkills(data.skills);
     }
+    if (Array.isArray(data.playlists) && data.playlists.length > 0) {
+      storageManager.savePlaylists(data.playlists);
+    } else if (Array.isArray(data.skills)) {
+      // Fallback for profiles created before playlists were synced to Firestore
+      const now = new Date().toISOString();
+      const fallbackPlaylist: Playlist = {
+        id: 'default_lets_go',
+        name: DEFAULT_PLAYLIST_NAME,
+        skillIds: data.skills.map((s) => s.id),
+        createdAt: now,
+        lastPlayedAt: now,
+      };
+      storageManager.savePlaylists([fallbackPlaylist]);
+      storageManager.setActivePlaylistId(fallbackPlaylist.id, false);
+    }
+    if (data.activePlaylistId && typeof data.activePlaylistId === 'string') {
+      storageManager.setActivePlaylistId(data.activePlaylistId, false);
+    }
+    // Reconcile playlists against loaded skills so no skill is left orphaned
+    storageManager.getPlaylists();
+
     if (Array.isArray(data.sessions)) {
-      localStorage.setItem('tempo_sessions_v1', JSON.stringify(data.sessions));
+      storageManager.saveSessions(data.sessions);
     }
     if (data.tempoRampSettings) {
       storageManager.saveTempoRampSettings(data.tempoRampSettings);
@@ -248,6 +284,8 @@ export async function syncLocalToCloud(): Promise<{ success: boolean; error?: st
     const now = new Date().toISOString();
     const data: Partial<CloudProfileData> = {
       skills: storageManager.getSkills(),
+      playlists: storageManager.getPlaylists(),
+      activePlaylistId: storageManager.getActivePlaylistId(),
       sessions: storageManager.getSessions(),
       tempoRampSettings: storageManager.getTempoRampSettings(),
       timbre: storageManager.getMetronomeTimbre(),
@@ -269,7 +307,11 @@ export async function syncLocalToCloud(): Promise<{ success: boolean; error?: st
  */
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
-export function triggerDebouncedCloudSync(delayMs = 15000): void {
+export function hasPendingSync(): boolean {
+  return debounceTimer !== null;
+}
+
+export function triggerDebouncedCloudSync(delayMs = 2500): void {
   const profileId = getStoredProfileId();
   if (!profileId) return;
 
@@ -278,6 +320,7 @@ export function triggerDebouncedCloudSync(delayMs = 15000): void {
   }
 
   debounceTimer = setTimeout(() => {
+    debounceTimer = null;
     syncLocalToCloud().catch((err) => {
       console.warn('Debounced cloud sync warning:', err);
     });
@@ -285,12 +328,13 @@ export function triggerDebouncedCloudSync(delayMs = 15000): void {
 }
 
 /**
- * Force immediate cloud sync (e.g. before unload or user triggers sync)
+ * Flush pending debounced cloud sync immediately (e.g. before unload)
  */
 export async function forceCloudSync(): Promise<{ success: boolean; error?: string }> {
-  if (debounceTimer) {
-    clearTimeout(debounceTimer);
-    debounceTimer = null;
+  if (!debounceTimer) {
+    return { success: true };
   }
+  clearTimeout(debounceTimer);
+  debounceTimer = null;
   return syncLocalToCloud();
 }

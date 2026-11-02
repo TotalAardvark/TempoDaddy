@@ -16,6 +16,7 @@ import { storageManager } from './storage/storageManager';
 import {
   triggerDebouncedCloudSync,
   forceCloudSync,
+  hasPendingSync,
   loadCloudProfile,
   getStoredProfileId,
 } from './storage/cloudSync';
@@ -291,7 +292,7 @@ export default function App() {
     setIsColdStart(false);
     setCompletedSkillIds(new Set());
 
-    let currentActiveList = skills.filter((s) => !s.isHibernated);
+    let currentActiveList = playlistSkills.filter((s) => !s.isHibernated);
     if (isRandomOrder && currentActiveList.length > 1) {
       // Fisher-Yates shuffle
       const shuffled = [...currentActiveList];
@@ -305,7 +306,7 @@ export default function App() {
       setSessionSkillOrder([]);
     }
 
-    const topSkill = currentActiveList[0] || skills[0];
+    const topSkill = currentActiveList[0] || playlistSkills[0] || skills[0];
     if (!topSkill) return;
 
     setActiveSkillIndex(0);
@@ -360,6 +361,7 @@ export default function App() {
       };
 
       storageManager.addSession(newSession);
+      triggerDebouncedCloudSync();
       const updatedSkills = storageManager.getSkills();
       setSkills(updatedSkills);
       setTodaySessions((prev) => [...prev, newSession]);
@@ -521,7 +523,10 @@ export default function App() {
 
     // Refresh skills and sessions state
     const updatedSkills = storageManager.getSkills();
-    const updatedActive = updatedSkills.filter((s) => !s.isHibernated);
+    const updatedSkillMap = new Map(updatedSkills.map((s) => [s.id, s]));
+    const updatedActive = activeSkills
+      .map((s) => updatedSkillMap.get(s.id) || s)
+      .filter((s) => !s.isHibernated);
     setSkills(updatedSkills);
     setTodaySessions((prev) => [...prev, newSession]);
     setStreak(storageManager.calculateStreak());
@@ -774,7 +779,11 @@ export default function App() {
 
   const handleReloadAllData = () => {
     const freshSkills = storageManager.getSkills();
+    const freshPlaylists = storageManager.getPlaylists();
+    const freshActivePlaylistId = storageManager.getActivePlaylistId();
     setSkills(freshSkills);
+    setPlaylists(freshPlaylists);
+    setActivePlaylistId(freshActivePlaylistId);
     setTodaySessions(
       storageManager.getSessions().filter((s) => s.date.slice(0, 10) === new Date().toISOString().slice(0, 10))
     );
@@ -782,14 +791,20 @@ export default function App() {
     setPbStats(storageManager.getPbStats());
     setTimbre(storageManager.getMetronomeTimbre());
     setTempoRampSettings(storageManager.getTempoRampSettings());
-    const active = freshSkills.filter((s) => !s.isHibernated);
+
+    const currentPl = freshPlaylists.find((p) => p.id === freshActivePlaylistId) || freshPlaylists[0];
+    const skillMap = new Map(freshSkills.map((s) => [s.id, s]));
+    const plSkills = currentPl
+      ? currentPl.skillIds.map((id) => skillMap.get(id)).filter((s): s is Skill => Boolean(s))
+      : freshSkills;
+    const active = plSkills.filter((s) => !s.isHibernated);
+    setActiveSkillIndex(0);
     if (active.length > 0) {
-      setActiveSkillIndex(0);
       loadSkill(active[0], false);
     }
   };
 
-  // Sync cloud profile on app startup if linked, and force sync before window unloads
+  // Sync cloud profile on app startup, backgrounding, and resume
   useEffect(() => {
     const profileId = getStoredProfileId();
     if (profileId) {
@@ -802,19 +817,62 @@ export default function App() {
       });
     }
 
-    const handleBeforeUnload = () => {
+    const handleFlushSync = () => {
       forceCloudSync();
     };
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        forceCloudSync();
+      } else if (document.visibilityState === 'visible') {
+        // App resumed - if there are no pending local changes, refresh from cloud
+        const currentProfileId = getStoredProfileId();
+        if (currentProfileId && !hasPendingSync()) {
+          loadCloudProfile(currentProfileId).then((res) => {
+            if (res.success) {
+              handleReloadAllData();
+            }
+          }).catch((err) => {
+            console.warn('Resume cloud profile refetch warning:', err);
+          });
+        }
+      }
+    };
+
+    const handleFocus = () => {
+      const currentProfileId = getStoredProfileId();
+      if (currentProfileId && !hasPendingSync()) {
+        loadCloudProfile(currentProfileId).then((res) => {
+          if (res.success) {
+            handleReloadAllData();
+          }
+        }).catch((err) => {
+          console.warn('Focus cloud profile refetch warning:', err);
+        });
+      }
+    };
+
+    window.addEventListener('beforeunload', handleFlushSync);
+    window.addEventListener('pagehide', handleFlushSync);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleFlushSync);
+      window.removeEventListener('pagehide', handleFlushSync);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, []);
 
   // Playlist Management Handlers
   const handleSelectPlaylist = (id: string) => {
     setActivePlaylistId(id);
     storageManager.setActivePlaylistId(id);
+    setPlaylists(storageManager.getPlaylists());
     setActiveSkillIndex(0);
     setCompletedSkillIds(new Set());
+    triggerDebouncedCloudSync();
     const pl = playlists.find((p) => p.id === id);
     if (pl && pl.skillIds.length > 0) {
       const firstSkill = skills.find((s) => s.id === pl.skillIds[0] && !s.isHibernated) || skills.find((s) => s.id === pl.skillIds[0]);
@@ -875,6 +933,7 @@ export default function App() {
     const newPl = storageManager.createPlaylist(playlistName);
     storageManager.addSkillToPlaylist(skillId, newPl.id);
     setPlaylists(storageManager.getPlaylists());
+    setActivePlaylistId(newPl.id);
     triggerDebouncedCloudSync();
   };
 

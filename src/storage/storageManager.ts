@@ -85,6 +85,20 @@ export const storageManager = {
         return initialList;
       }
       const parsed: Playlist[] = JSON.parse(stored);
+      if (!Array.isArray(parsed) || parsed.length === 0) {
+        const defaultPlaylist: Playlist = {
+          id: 'default_lets_go',
+          name: DEFAULT_PLAYLIST_NAME,
+          skillIds: skills.map((s) => s.id),
+          createdAt: new Date().toISOString(),
+          lastPlayedAt: new Date().toISOString(),
+        };
+        const initialList = [defaultPlaylist];
+        localStorage.setItem(PLAYLISTS_KEY, JSON.stringify(initialList));
+        localStorage.setItem(ACTIVE_PLAYLIST_ID_KEY, defaultPlaylist.id);
+        return initialList;
+      }
+
       // Clean up any dangling skill IDs that no longer exist in skills table
       let needsSave = false;
       parsed.forEach((pl) => {
@@ -94,6 +108,18 @@ export const storageManager = {
           needsSave = true;
         }
       });
+
+      // Rescue any orphaned skills that exist in skills storage but aren't in any playlist
+      const assignedSkillIds = new Set<string>();
+      parsed.forEach((pl) => pl.skillIds.forEach((id) => assignedSkillIds.add(id)));
+      const orphanedSkillIds = skills.map((s) => s.id).filter((id) => !assignedSkillIds.has(id));
+      if (orphanedSkillIds.length > 0) {
+        const activeId = localStorage.getItem(ACTIVE_PLAYLIST_ID_KEY);
+        const targetPlaylist = parsed.find((p) => p.id === activeId) || parsed[0];
+        targetPlaylist.skillIds.push(...orphanedSkillIds);
+        needsSave = true;
+      }
+
       if (needsSave) {
         localStorage.setItem(PLAYLISTS_KEY, JSON.stringify(parsed));
       }
@@ -129,15 +155,17 @@ export const storageManager = {
     return 'default_lets_go';
   },
 
-  setActivePlaylistId(playlistId: string) {
+  setActivePlaylistId(playlistId: string, touchLastPlayed = true) {
     try {
       localStorage.setItem(ACTIVE_PLAYLIST_ID_KEY, playlistId);
-      // Update lastPlayedAt on this playlist
-      const playlists = this.getPlaylists();
-      const idx = playlists.findIndex((p) => p.id === playlistId);
-      if (idx !== -1) {
-        playlists[idx].lastPlayedAt = new Date().toISOString();
-        this.savePlaylists(playlists);
+      if (touchLastPlayed) {
+        // Update lastPlayedAt on this playlist
+        const playlists = this.getPlaylists();
+        const idx = playlists.findIndex((p) => p.id === playlistId);
+        if (idx !== -1) {
+          playlists[idx].lastPlayedAt = new Date().toISOString();
+          this.savePlaylists(playlists);
+        }
       }
     } catch (e) {
       console.error('Error saving active playlist ID', e);
