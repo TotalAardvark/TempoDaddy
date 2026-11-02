@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Minus, Plus, Check, Trophy, X } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { StickingDisplay } from './StickingDisplay';
+import { MIN_BPM, MAX_BPM } from '../types';
 
 interface ConfirmSessionModalProps {
   isOpen: boolean;
@@ -58,14 +59,14 @@ export const ConfirmSessionModal: React.FC<ConfirmSessionModalProps> = ({
         const isRapid = lastModalBpmKeyRef.current.key === '+' && now - lastModalBpmKeyRef.current.time < 380;
         lastModalBpmKeyRef.current = { key: '+', time: now };
         const step = isRapid ? 3 : 1;
-        setLoggedBpm((prev) => Math.min(320, prev + step));
+        setLoggedBpm((prev) => Math.min(MAX_BPM, prev + step));
       } else if (e.key === '-' || e.key === '_') {
         e.preventDefault();
         const now = Date.now();
         const isRapid = lastModalBpmKeyRef.current.key === '-' && now - lastModalBpmKeyRef.current.time < 380;
         lastModalBpmKeyRef.current = { key: '-', time: now };
         const step = isRapid ? 3 : 1;
-        setLoggedBpm((prev) => Math.max(30, prev - step));
+        setLoggedBpm((prev) => Math.max(MIN_BPM, prev - step));
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -112,7 +113,7 @@ export const ConfirmSessionModal: React.FC<ConfirmSessionModalProps> = ({
         <div className="flex items-center justify-center gap-4 mb-6">
           <button
             type="button"
-            onClick={() => setLoggedBpm((prev) => Math.max(30, prev - 1))}
+            onClick={() => setLoggedBpm((prev) => Math.max(MIN_BPM, prev - 1))}
             className="w-12 h-12 rounded-2xl bg-neutral-800 hover:bg-neutral-700 active:bg-neutral-600 border border-neutral-700 text-white flex items-center justify-center shadow-md active:scale-95 transition"
           >
             <Minus className="w-5 h-5" />
@@ -129,7 +130,7 @@ export const ConfirmSessionModal: React.FC<ConfirmSessionModalProps> = ({
 
           <button
             type="button"
-            onClick={() => setLoggedBpm((prev) => Math.min(320, prev + 1))}
+            onClick={() => setLoggedBpm((prev) => Math.min(MAX_BPM, prev + 1))}
             className="w-12 h-12 rounded-2xl bg-neutral-800 hover:bg-neutral-700 active:bg-neutral-600 border border-neutral-700 text-white flex items-center justify-center shadow-md active:scale-95 transition"
           >
             <Plus className="w-5 h-5" />

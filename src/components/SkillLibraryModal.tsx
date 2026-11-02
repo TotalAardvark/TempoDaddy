@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   X,
   Plus,
@@ -19,7 +19,7 @@ import {
   GripVertical,
   ListMusic,
 } from 'lucide-react';
-import type { Skill, PresetSkill, Subdivision } from '../types';
+import { MIN_BPM, MAX_BPM, type Skill, type PresetSkill, type Subdivision, type PracticeSessionLog } from '../types';
 import { PRESET_SKILLS } from '../data/initialSkills';
 import { storageManager } from '../storage/storageManager';
 import { TealProgressGraph } from './TealProgressGraph';
@@ -237,7 +237,7 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
       }
       const avgInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
       const calculatedBpm = Math.round(60000 / avgInterval);
-      const clampedBpm = Math.max(30, Math.min(300, calculatedBpm));
+      const clampedBpm = Math.max(MIN_BPM, Math.min(MAX_BPM, calculatedBpm));
       setCustomPb(clampedBpm);
     }
   };
@@ -261,10 +261,20 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
       }
       const avgInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
       const calculatedBpm = Math.round(60000 / avgInterval);
-      const clampedBpm = Math.max(30, Math.min(300, calculatedBpm));
+      const clampedBpm = Math.max(MIN_BPM, Math.min(MAX_BPM, calculatedBpm));
       setEditPb(clampedBpm);
     }
   };
+
+  // Precompute skill history once per modal open / skills update so typing in inputs doesn't re-parse localStorage for every row
+  const historyBySkillId = useMemo(() => {
+    const map = new Map<string, PracticeSessionLog[]>();
+    if (!isOpen) return map;
+    skills.forEach((skill) => {
+      map.set(skill.id, storageManager.getSkillHistory(skill.id));
+    });
+    return map;
+  }, [isOpen, skills]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -435,6 +445,428 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
     setIsAdding(false);
   };
 
+  const renderSkillEditForm = (skill: Skill) => (
+    <div
+      key={skill.id}
+      className="bg-neutral-950 border border-neutral-800 rounded-2xl p-4 animate-in fade-in"
+    >
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-xs uppercase font-mono font-bold text-neutral-300 flex items-center gap-1.5">
+          <Pencil className="w-3.5 h-3.5 text-amber-400" />
+          Practice Settings
+        </span>
+        <button
+          type="button"
+          onClick={() => setEditingSkill(null)}
+          className="text-xs text-neutral-500 hover:text-neutral-300"
+        >
+          Cancel
+        </button>
+      </div>
+
+      <form onSubmit={handleSaveEdit} className="space-y-3">
+        <div>
+          <label className="text-[11px] text-neutral-400 block mb-1">
+            Skill or Fill Name *
+          </label>
+          <input
+            type="text"
+            required
+            placeholder="e.g. Single Stroke Roll"
+            value={editTitle}
+            onChange={(e) => setEditTitle(e.target.value)}
+            className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
+          />
+        </div>
+
+        <div>
+          <label className="text-[11px] text-neutral-400 block mb-1">
+            Sticking Pattern / Notation (Optional)
+          </label>
+          <input
+            type="text"
+            placeholder="e.g. R l r r L r ll (capital letters for accents)"
+            value={editSticking}
+            onChange={(e) => setEditSticking(e.target.value)}
+            className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-amber-400"
+          />
+        </div>
+
+        <div>
+          <label className="text-[11px] text-neutral-400 block mb-1">
+            Performance Notes (Optional)
+          </label>
+          <textarea
+            rows={2}
+            placeholder="e.g. Focus on even dynamic rebound..."
+            value={editNotes}
+            onChange={(e) => setEditNotes(e.target.value)}
+            className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white resize-none focus:outline-none focus:border-amber-400"
+          />
+        </div>
+
+        {/* Practice Tempo, Default Subdivision, and Triplets on the same row */}
+        <div className="grid grid-cols-12 gap-2.5 items-end">
+          <div className="col-span-5">
+            <label className="text-[11px] text-neutral-400 block mb-1 truncate">
+              Practice Tempo
+            </label>
+            <div className="flex items-center gap-1.5">
+              <input
+                type="number"
+                min="1"
+                max={MAX_BPM}
+                value={editPb}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setEditPb(val === '' ? '' : parseInt(val, 10));
+                }}
+                className="w-full min-w-0 bg-neutral-900 border border-neutral-800 rounded-xl px-2.5 py-2 text-xs text-white font-mono focus:outline-none focus:border-amber-400"
+              />
+              <button
+                type="button"
+                onClick={handleEditTap}
+                title="Tap tempo"
+                className="h-[34px] px-2.5 sm:px-3 bg-neutral-800 hover:bg-neutral-700 active:bg-amber-500 active:text-neutral-950 active:border-amber-400 border border-neutral-700/80 text-white font-semibold text-xs rounded-xl transition-all duration-75 flex items-center justify-center shrink-0 shadow-sm active:scale-95 select-none"
+              >
+                Tap
+              </button>
+            </div>
+          </div>
+
+          <div className="col-span-5">
+            <label className="text-[11px] text-neutral-400 block mb-1">
+              Default Subdivision
+            </label>
+            <select
+              value={editSubdivision}
+              onChange={(e) => setEditSubdivision(e.target.value as Subdivision)}
+              className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-2 py-2 text-xs text-white bg-transparent focus:outline-none focus:border-amber-400"
+            >
+              <option value="1/4" className="bg-neutral-900">1/4 Note</option>
+              <option value="1/8" className="bg-neutral-900">1/8 Note</option>
+              <option value="1/16" className="bg-neutral-900">1/16 Note</option>
+            </select>
+          </div>
+
+          <div className="col-span-2 flex flex-col items-end justify-end">
+            <label className="text-[11px] text-neutral-400 block mb-1 w-full text-right">
+              Triplets?
+            </label>
+            <div className="h-[34px] flex items-center justify-end w-full">
+              <input
+                type="checkbox"
+                checked={editIsTriplet}
+                onChange={(e) => setEditIsTriplet(e.target.checked)}
+                className="w-4 h-4 rounded bg-neutral-900 border-neutral-700 text-amber-500 focus:ring-0 cursor-pointer"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Quick Actions centered with individual dark grey outlines and pipe dividers */}
+        <div className="pt-2 border-t border-neutral-850">
+          <div className="text-[10px] uppercase font-mono tracking-wider text-neutral-400 mb-1.5 flex justify-between items-center px-1">
+            <span>Quick Actions</span>
+            {duplicateSuccessText && (
+              <span className="text-emerald-400 font-sans text-xs animate-in fade-in">
+                {duplicateSuccessText}
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center justify-center gap-2 py-1">
+            {/* 1. Invert Button with Tap Confirmation */}
+            {activeConfirmAction === 'invert' ? (
+              <button
+                type="button"
+                onClick={() => triggerConfirmAction('invert', handleInvertEdit)}
+                className="px-3 py-1.5 rounded-xl bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 border border-amber-500/50 text-[11px] font-bold flex items-center gap-1.5 animate-in fade-in shadow-sm"
+                title="Click again to confirm invert"
+              >
+                <ArrowLeftRight className="w-3.5 h-3.5" />
+                <span>Invert?</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => triggerConfirmAction('invert', handleInvertEdit)}
+                className="p-2 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-neutral-400 hover:text-amber-400 active:scale-95 transition flex items-center justify-center shadow-sm"
+                title="Invert Sticking (R ⇄ L) & update title"
+              >
+                <ArrowLeftRight className="w-4 h-4" />
+              </button>
+            )}
+
+            {/* Pipe divider */}
+            <div className="h-4 w-[1px] bg-neutral-800" />
+
+            {/* 2. Duplicate Button with Tap Confirmation */}
+            {activeConfirmAction === 'duplicate' ? (
+              <button
+                type="button"
+                onClick={() => triggerConfirmAction('duplicate', handleDuplicateEdit)}
+                disabled={isDuplicating}
+                className="px-3 py-1.5 rounded-xl bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border border-emerald-500/50 text-[11px] font-bold flex items-center gap-1.5 animate-in fade-in shadow-sm disabled:opacity-50"
+                title="Click again to duplicate"
+              >
+                <Copy className={`w-3.5 h-3.5 ${isDuplicating ? 'animate-spin' : ''}`} />
+                <span>Duplicate?</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => triggerConfirmAction('duplicate', handleDuplicateEdit)}
+                disabled={isDuplicating}
+                className="p-2 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-neutral-400 hover:text-emerald-400 active:scale-95 transition flex items-center justify-center shadow-sm disabled:opacity-50"
+                title="Duplicate this skill into the queue"
+              >
+                <Copy className={`w-4 h-4 ${isDuplicating ? 'animate-spin' : ''}`} />
+              </button>
+            )}
+
+            {/* Pipe divider */}
+            <div className="h-4 w-[1px] bg-neutral-800" />
+
+            {/* 3. Playlist Membership Button */}
+            <button
+              type="button"
+              onClick={() => setIsPlaylistDisclosureOpen((prev) => !prev)}
+              className={`p-2 rounded-xl border transition flex items-center justify-center shadow-sm ${
+                isPlaylistDisclosureOpen
+                  ? 'bg-amber-500/20 text-amber-400 border-amber-500/50'
+                  : 'bg-neutral-900 border-neutral-800 hover:border-neutral-700 text-neutral-400 hover:text-amber-400 active:scale-95'
+              }`}
+              title="Add / Remove from Playlists"
+            >
+              <ListMusic className="w-4 h-4" />
+            </button>
+
+            {/* Pipe divider */}
+            <div className="h-4 w-[1px] bg-neutral-800" />
+
+            {/* 4. Hibernate / Wake Button with Tap Confirmation */}
+            {activeConfirmAction === 'hibernate' ? (
+              <button
+                type="button"
+                onClick={() =>
+                  triggerConfirmAction('hibernate', () =>
+                    handleConfirmHibernate(skill.id)
+                  )
+                }
+                className="px-3 py-1.5 rounded-xl bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 border border-purple-500/50 text-[11px] font-bold flex items-center gap-1.5 animate-in fade-in shadow-sm"
+                title={skill.isHibernated ? 'Click again to wake up' : 'Click again to hibernate'}
+              >
+                {skill.isHibernated ? (
+                  <>
+                    <Sun className="w-3.5 h-3.5" />
+                    <span>Wake?</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="tracking-tighter font-mono font-bold">zZz</span>
+                    <span>Hibernate?</span>
+                  </>
+                )}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() =>
+                  triggerConfirmAction('hibernate', () =>
+                    handleConfirmHibernate(skill.id)
+                  )
+                }
+                className="p-2 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-neutral-400 hover:text-purple-400 active:scale-95 transition flex items-center justify-center shadow-sm font-mono font-bold text-xs"
+                title={skill.isHibernated ? 'Wake up skill' : 'Hibernate skill (zZz)'}
+              >
+                {skill.isHibernated ? (
+                  <Sun className="w-4 h-4 text-purple-300" />
+                ) : (
+                  <span className="tracking-tighter">zZz</span>
+                )}
+              </button>
+            )}
+
+            {/* Pipe divider */}
+            <div className="h-4 w-[1px] bg-neutral-800" />
+
+            {/* 5. Delete Button with Tap Confirmation */}
+            {activeConfirmAction === 'delete' ? (
+              <button
+                type="button"
+                onClick={() =>
+                  triggerConfirmAction('delete', () => {
+                    const memberPlaylists = playlists.filter((p) => p.skillIds.includes(skill.id));
+                    if (memberPlaylists.length > 1) {
+                      setMultiPlaylistDeleteWarning({
+                        skillId: skill.id,
+                        skillTitle: skill.title,
+                        playlists: memberPlaylists,
+                      });
+                    } else {
+                      setEditingSkill(null);
+                      onDeleteSkill(skill.id);
+                    }
+                  })
+                }
+                className="px-3 py-1.5 rounded-xl bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 border border-amber-500/50 text-[11px] font-bold flex items-center gap-1.5 animate-in fade-in shadow-sm"
+                title="Click again to permanently delete"
+              >
+                <Trash2 className="w-3.5 h-3.5 text-amber-400" />
+                <span>Delete?</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() =>
+                  triggerConfirmAction('delete', () => {
+                    const memberPlaylists = playlists.filter((p) => p.skillIds.includes(skill.id));
+                    if (memberPlaylists.length > 1) {
+                      setMultiPlaylistDeleteWarning({
+                        skillId: skill.id,
+                        skillTitle: skill.title,
+                        playlists: memberPlaylists,
+                      });
+                    } else {
+                      setEditingSkill(null);
+                      onDeleteSkill(skill.id);
+                    }
+                  })
+                }
+                className="p-2 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-neutral-400 hover:text-amber-400 active:scale-95 transition flex items-center justify-center shadow-sm"
+                title="Delete Skill"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+
+          {/* Inline Playlist Membership Accordion / Disclosure */}
+          {isPlaylistDisclosureOpen && (
+            <div className="mt-2.5 p-3 rounded-2xl bg-neutral-900/90 border border-neutral-800 space-y-2 animate-in fade-in">
+              <div className="flex items-center justify-between text-[11px] text-neutral-400">
+                <span className="font-semibold text-neutral-300 flex items-center gap-1.5">
+                  <ListMusic className="w-3.5 h-3.5 text-amber-400" />
+                  <span>In Playlists:</span>
+                </span>
+                <span className="text-[10px] text-neutral-500 font-mono">
+                  {playlists.filter((p) => p.skillIds.includes(skill.id)).length} selected
+                </span>
+              </div>
+
+              <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                {playlists.map((pl) => {
+                  const isInPlaylist = pl.skillIds.includes(skill.id);
+                  return (
+                    <label
+                      key={pl.id}
+                      className="flex items-center justify-between p-2 rounded-xl bg-neutral-950/70 hover:bg-neutral-950 border border-neutral-800/80 cursor-pointer text-xs text-neutral-300 hover:text-white transition"
+                    >
+                      <div className="flex items-center gap-2 truncate pr-2">
+                        <input
+                          type="checkbox"
+                          checked={isInPlaylist}
+                          onChange={() => {
+                            const memberCount = playlists.filter((p) => p.skillIds.includes(skill.id)).length;
+                            if (isInPlaylist && memberCount <= 1) {
+                              setOrphanWarningSkillId(skill.id);
+                              return;
+                            }
+                            onToggleSkillInPlaylist?.(skill.id, pl.id);
+                          }}
+                          className="w-3.5 h-3.5 rounded bg-neutral-900 border-neutral-700 text-amber-500 focus:ring-0 cursor-pointer"
+                        />
+                        <span className="truncate">{pl.name}</span>
+                      </div>
+                      {pl.id === activePlaylistId && (
+                        <span className="text-[10px] font-mono text-amber-400 shrink-0">
+                          (Active)
+                        </span>
+                      )}
+                    </label>
+                  );
+                })}
+              </div>
+
+              {/* Inline Add to New Playlist Form */}
+              {!isCreatingPlaylistInline ? (
+                <button
+                  type="button"
+                  onClick={() => setIsCreatingPlaylistInline(true)}
+                  className="w-full py-1.5 text-center text-xs text-neutral-400 hover:text-amber-400 border border-dashed border-neutral-800 hover:border-amber-400/40 rounded-xl transition flex items-center justify-center gap-1.5"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Create New Playlist</span>
+                </button>
+              ) : (
+                <div className="flex items-center gap-1.5 pt-1">
+                  <input
+                    type="text"
+                    autoFocus
+                    placeholder="Playlist name..."
+                    value={newPlaylistInlineName}
+                    onChange={(e) => setNewPlaylistInlineName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (newPlaylistInlineName.trim()) {
+                          onCreatePlaylistWithSkill?.(newPlaylistInlineName.trim(), skill.id);
+                          setNewPlaylistInlineName('');
+                          setIsCreatingPlaylistInline(false);
+                        }
+                      }
+                      if (e.key === 'Escape') {
+                        setIsCreatingPlaylistInline(false);
+                      }
+                    }}
+                    className="flex-1 bg-neutral-950 border border-neutral-800 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-amber-400"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (newPlaylistInlineName.trim()) {
+                        onCreatePlaylistWithSkill?.(newPlaylistInlineName.trim(), skill.id);
+                        setNewPlaylistInlineName('');
+                        setIsCreatingPlaylistInline(false);
+                      }
+                    }}
+                    className="px-2.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold text-xs transition"
+                  >
+                    Add
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsCreatingPlaylistInline(false)}
+                    className="p-1.5 rounded-xl text-neutral-400 hover:text-white"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="flex gap-2 pt-1">
+          <button
+            type="button"
+            onClick={() => setEditingSkill(null)}
+            className="flex-1 py-2.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-xl font-bold text-xs transition"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-400 text-neutral-950 rounded-xl font-bold text-xs transition"
+          >
+            Save Settings
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in">
       <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-lg w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
@@ -512,434 +944,13 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
                   <div ref={activeSkillsListRef} className="space-y-2">
                     {activeSkills.map((skill) => {
                       const globalIndex = skills.indexOf(skill);
-                      const history = storageManager.getSkillHistory(skill.id);
+                      const history = historyBySkillId.get(skill.id) ?? [];
                       const isEditingThisSkill = editingSkill?.id === skill.id;
                       const isDraggingThisSkill = draggingSkillId === skill.id;
                       const isDragOverThisSkill = dragOverSkillId === skill.id;
 
                       if (isEditingThisSkill) {
-                        return (
-                          <div
-                            key={skill.id}
-                            className="bg-neutral-950 border border-neutral-800 rounded-2xl p-4 animate-in fade-in"
-                          >
-                            <div className="flex items-center justify-between mb-3">
-                              <span className="text-xs uppercase font-mono font-bold text-neutral-300 flex items-center gap-1.5">
-                                <Pencil className="w-3.5 h-3.5 text-amber-400" />
-                                Practice Settings
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => setEditingSkill(null)}
-                                className="text-xs text-neutral-500 hover:text-neutral-300"
-                              >
-                                Cancel
-                              </button>
-                            </div>
-
-                            <form onSubmit={handleSaveEdit} className="space-y-3">
-                              <div>
-                                <label className="text-[11px] text-neutral-400 block mb-1">
-                                  Skill or Fill Name *
-                                </label>
-                                <input
-                                  type="text"
-                                  required
-                                  placeholder="e.g. Single Stroke Roll"
-                                  value={editTitle}
-                                  onChange={(e) => setEditTitle(e.target.value)}
-                                  className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
-                                />
-                              </div>
-
-                              <div>
-                                <label className="text-[11px] text-neutral-400 block mb-1">
-                                  Sticking Pattern / Notation (Optional)
-                                </label>
-                                <input
-                                  type="text"
-                                  placeholder="e.g. R l r r L r ll (capital letters for accents)"
-                                  value={editSticking}
-                                  onChange={(e) => setEditSticking(e.target.value)}
-                                  className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-amber-400"
-                                />
-                              </div>
-
-                              <div>
-                                <label className="text-[11px] text-neutral-400 block mb-1">
-                                  Performance Notes (Optional)
-                                </label>
-                                <textarea
-                                  rows={2}
-                                  placeholder="e.g. Focus on even dynamic rebound..."
-                                  value={editNotes}
-                                  onChange={(e) => setEditNotes(e.target.value)}
-                                  className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white resize-none focus:outline-none focus:border-amber-400"
-                                />
-                              </div>
-
-                              {/* Practice Tempo, Default Subdivision, and Triplets on the same row */}
-                              <div className="grid grid-cols-12 gap-2.5 items-end">
-                                <div className="col-span-5">
-                                  <label className="text-[11px] text-neutral-400 block mb-1 truncate">
-                                    Practice Tempo
-                                  </label>
-                                  <div className="flex items-center gap-1.5">
-                                    <input
-                                      type="number"
-                                      min="1"
-                                      max="300"
-                                      value={editPb}
-                                      onChange={(e) => {
-                                        const val = e.target.value;
-                                        setEditPb(val === '' ? '' : parseInt(val, 10));
-                                      }}
-                                      className="w-full min-w-0 bg-neutral-900 border border-neutral-800 rounded-xl px-2.5 py-2 text-xs text-white font-mono focus:outline-none focus:border-amber-400"
-                                    />
-                                    <button
-                                      type="button"
-                                      onClick={handleEditTap}
-                                      title="Tap tempo"
-                                      className="h-[34px] px-2.5 sm:px-3 bg-neutral-800 hover:bg-neutral-700 active:bg-amber-500 active:text-neutral-950 active:border-amber-400 border border-neutral-700/80 text-white font-semibold text-xs rounded-xl transition-all duration-75 flex items-center justify-center shrink-0 shadow-sm active:scale-95 select-none"
-                                    >
-                                      Tap
-                                    </button>
-                                  </div>
-                                </div>
-
-                                <div className="col-span-5">
-                                  <label className="text-[11px] text-neutral-400 block mb-1">
-                                    Default Subdivision
-                                  </label>
-                                  <select
-                                    value={editSubdivision}
-                                    onChange={(e) => setEditSubdivision(e.target.value as Subdivision)}
-                                    className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-2 py-2 text-xs text-white bg-transparent focus:outline-none focus:border-amber-400"
-                                  >
-                                    <option value="1/4" className="bg-neutral-900">1/4 Note</option>
-                                    <option value="1/8" className="bg-neutral-900">1/8 Note</option>
-                                    <option value="1/16" className="bg-neutral-900">1/16 Note</option>
-                                  </select>
-                                </div>
-
-                                <div className="col-span-2 flex flex-col items-end justify-end">
-                                  <label className="text-[11px] text-neutral-400 block mb-1 w-full text-right">
-                                    Triplets?
-                                  </label>
-                                  <div className="h-[34px] flex items-center justify-end w-full">
-                                    <input
-                                      type="checkbox"
-                                      checked={editIsTriplet}
-                                      onChange={(e) => setEditIsTriplet(e.target.checked)}
-                                      className="w-4 h-4 rounded bg-neutral-900 border-neutral-700 text-amber-500 focus:ring-0 cursor-pointer"
-                                    />
-                                  </div>
-                                </div>
-                              </div>
-
-                              {/* Quick Actions centered with individual dark grey outlines and pipe dividers */}
-                              <div className="pt-2 border-t border-neutral-850">
-                                <div className="text-[10px] uppercase font-mono tracking-wider text-neutral-400 mb-1.5 flex justify-between items-center px-1">
-                                  <span>Quick Actions</span>
-                                  {duplicateSuccessText && (
-                                    <span className="text-emerald-400 font-sans text-xs animate-in fade-in">
-                                      {duplicateSuccessText}
-                                    </span>
-                                  )}
-                                </div>
-
-                                <div className="flex items-center justify-center gap-2 py-1">
-                                  {/* 1. Invert Button with Tap Confirmation */}
-                                  {activeConfirmAction === 'invert' ? (
-                                    <button
-                                      type="button"
-                                      onClick={() => triggerConfirmAction('invert', handleInvertEdit)}
-                                      className="px-3 py-1.5 rounded-xl bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 border border-amber-500/50 text-[11px] font-bold flex items-center gap-1.5 animate-in fade-in shadow-sm"
-                                      title="Click again to confirm invert"
-                                    >
-                                      <ArrowLeftRight className="w-3.5 h-3.5" />
-                                      <span>Invert?</span>
-                                    </button>
-                                  ) : (
-                                    <button
-                                      type="button"
-                                      onClick={() => triggerConfirmAction('invert', handleInvertEdit)}
-                                      className="p-2 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-neutral-400 hover:text-amber-400 active:scale-95 transition flex items-center justify-center shadow-sm"
-                                      title="Invert Sticking (R ⇄ L) & update title"
-                                    >
-                                      <ArrowLeftRight className="w-4 h-4" />
-                                    </button>
-                                  )}
-
-                                  {/* Pipe divider */}
-                                  <div className="h-4 w-[1px] bg-neutral-800" />
-
-                                  {/* 2. Duplicate Button with Tap Confirmation */}
-                                  {activeConfirmAction === 'duplicate' ? (
-                                    <button
-                                      type="button"
-                                      onClick={() => triggerConfirmAction('duplicate', handleDuplicateEdit)}
-                                      disabled={isDuplicating}
-                                      className="px-3 py-1.5 rounded-xl bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border border-emerald-500/50 text-[11px] font-bold flex items-center gap-1.5 animate-in fade-in shadow-sm disabled:opacity-50"
-                                      title="Click again to duplicate"
-                                    >
-                                      <Copy className={`w-3.5 h-3.5 ${isDuplicating ? 'animate-spin' : ''}`} />
-                                      <span>Duplicate?</span>
-                                    </button>
-                                  ) : (
-                                    <button
-                                      type="button"
-                                      onClick={() => triggerConfirmAction('duplicate', handleDuplicateEdit)}
-                                      disabled={isDuplicating}
-                                      className="p-2 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-neutral-400 hover:text-emerald-400 active:scale-95 transition flex items-center justify-center shadow-sm disabled:opacity-50"
-                                      title="Duplicate this skill into the queue"
-                                    >
-                                      <Copy className={`w-4 h-4 ${isDuplicating ? 'animate-spin' : ''}`} />
-                                    </button>
-                                  )}
-
-                                  {/* Pipe divider */}
-                                  <div className="h-4 w-[1px] bg-neutral-800" />
-
-                                  {/* 3. Playlist Membership Button */}
-                                  <button
-                                    type="button"
-                                    onClick={() => setIsPlaylistDisclosureOpen((prev) => !prev)}
-                                    className={`p-2 rounded-xl border transition flex items-center justify-center shadow-sm ${
-                                      isPlaylistDisclosureOpen
-                                        ? 'bg-amber-500/20 text-amber-400 border-amber-500/50'
-                                        : 'bg-neutral-900 border-neutral-800 hover:border-neutral-700 text-neutral-400 hover:text-amber-400 active:scale-95'
-                                    }`}
-                                    title="Add / Remove from Playlists"
-                                  >
-                                    <ListMusic className="w-4 h-4" />
-                                  </button>
-
-                                  {/* Pipe divider */}
-                                  <div className="h-4 w-[1px] bg-neutral-800" />
-
-                                  {/* 4. Hibernate Button with Tap Confirmation */}
-                                  {activeConfirmAction === 'hibernate' ? (
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        triggerConfirmAction('hibernate', () =>
-                                          handleConfirmHibernate(editingSkill.id)
-                                        )
-                                      }
-                                      className="px-3 py-1.5 rounded-xl bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 border border-purple-500/50 text-[11px] font-bold flex items-center gap-1.5 animate-in fade-in shadow-sm"
-                                      title={editingSkill.isHibernated ? 'Click again to wake up' : 'Click again to hibernate'}
-                                    >
-                                      {editingSkill.isHibernated ? (
-                                        <>
-                                          <Sun className="w-3.5 h-3.5" />
-                                          <span>Wake?</span>
-                                        </>
-                                      ) : (
-                                        <>
-                                          <span className="tracking-tighter font-mono font-bold">zZz</span>
-                                          <span>Hibernate?</span>
-                                        </>
-                                      )}
-                                    </button>
-                                  ) : (
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        triggerConfirmAction('hibernate', () =>
-                                          handleConfirmHibernate(editingSkill.id)
-                                        )
-                                      }
-                                      className="p-2 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-neutral-400 hover:text-purple-400 active:scale-95 transition flex items-center justify-center shadow-sm font-mono font-bold text-xs"
-                                      title={editingSkill.isHibernated ? 'Wake up skill' : 'Hibernate skill (zZz)'}
-                                    >
-                                      {editingSkill.isHibernated ? (
-                                        <Sun className="w-4 h-4 text-purple-300" />
-                                      ) : (
-                                        <span className="tracking-tighter">zZz</span>
-                                      )}
-                                    </button>
-                                  )}
-
-                                  {/* Pipe divider */}
-                                  <div className="h-4 w-[1px] bg-neutral-800" />
-
-                                  {/* 5. Delete Button with Tap Confirmation */}
-                                  {activeConfirmAction === 'delete' ? (
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        triggerConfirmAction('delete', () => {
-                                          const memberPlaylists = playlists.filter((p) => p.skillIds.includes(editingSkill.id));
-                                          if (memberPlaylists.length > 1) {
-                                            setMultiPlaylistDeleteWarning({
-                                              skillId: editingSkill.id,
-                                              skillTitle: editingSkill.title,
-                                              playlists: memberPlaylists,
-                                            });
-                                          } else {
-                                            setEditingSkill(null);
-                                            onDeleteSkill(editingSkill.id);
-                                          }
-                                        })
-                                      }
-                                      className="px-3 py-1.5 rounded-xl bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 border border-amber-500/50 text-[11px] font-bold flex items-center gap-1.5 animate-in fade-in shadow-sm"
-                                      title="Click again to permanently delete"
-                                    >
-                                      <Trash2 className="w-3.5 h-3.5 text-amber-400" />
-                                      <span>Delete?</span>
-                                    </button>
-                                  ) : (
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        triggerConfirmAction('delete', () => {
-                                          const memberPlaylists = playlists.filter((p) => p.skillIds.includes(editingSkill.id));
-                                          if (memberPlaylists.length > 1) {
-                                            setMultiPlaylistDeleteWarning({
-                                              skillId: editingSkill.id,
-                                              skillTitle: editingSkill.title,
-                                              playlists: memberPlaylists,
-                                            });
-                                          } else {
-                                            setEditingSkill(null);
-                                            onDeleteSkill(editingSkill.id);
-                                          }
-                                        })
-                                      }
-                                      className="p-2 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-neutral-400 hover:text-amber-400 active:scale-95 transition flex items-center justify-center shadow-sm"
-                                      title="Delete Skill"
-                                    >
-                                      <Trash2 className="w-4 h-4" />
-                                    </button>
-                                  )}
-                                </div>
-
-                                {/* Inline Playlist Membership Accordion / Disclosure */}
-                                {isPlaylistDisclosureOpen && (
-                                  <div className="mt-2.5 p-3 rounded-2xl bg-neutral-900/90 border border-neutral-800 space-y-2 animate-in fade-in">
-                                    <div className="flex items-center justify-between text-[11px] text-neutral-400">
-                                      <span className="font-semibold text-neutral-300 flex items-center gap-1.5">
-                                        <ListMusic className="w-3.5 h-3.5 text-amber-400" />
-                                        <span>In Playlists:</span>
-                                      </span>
-                                      <span className="text-[10px] text-neutral-500 font-mono">
-                                        {playlists.filter((p) => p.skillIds.includes(editingSkill.id)).length} selected
-                                      </span>
-                                    </div>
-
-                                    <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
-                                      {playlists.map((pl) => {
-                                        const isInPlaylist = pl.skillIds.includes(editingSkill.id);
-                                        return (
-                                          <label
-                                            key={pl.id}
-                                            className="flex items-center justify-between p-2 rounded-xl bg-neutral-950/70 hover:bg-neutral-950 border border-neutral-800/80 cursor-pointer text-xs text-neutral-300 hover:text-white transition"
-                                          >
-                                            <div className="flex items-center gap-2 truncate pr-2">
-                                              <input
-                                                type="checkbox"
-                                                checked={isInPlaylist}
-                                                onChange={() => {
-                                                  const memberCount = playlists.filter((p) => p.skillIds.includes(editingSkill.id)).length;
-                                                  if (isInPlaylist && memberCount <= 1) {
-                                                    // Trigger orphan protection warning modal
-                                                    setOrphanWarningSkillId(editingSkill.id);
-                                                    return;
-                                                  }
-                                                  onToggleSkillInPlaylist?.(editingSkill.id, pl.id);
-                                                }}
-                                                className="w-3.5 h-3.5 rounded bg-neutral-900 border-neutral-700 text-amber-500 focus:ring-0 cursor-pointer"
-                                              />
-                                              <span className="truncate">{pl.name}</span>
-                                            </div>
-                                            {pl.id === activePlaylistId && (
-                                              <span className="text-[10px] font-mono text-amber-400 shrink-0">
-                                                (Active)
-                                              </span>
-                                            )}
-                                          </label>
-                                        );
-                                      })}
-                                    </div>
-
-                                    {/* Inline Add to New Playlist Form */}
-                                    {!isCreatingPlaylistInline ? (
-                                      <button
-                                        type="button"
-                                        onClick={() => setIsCreatingPlaylistInline(true)}
-                                        className="w-full py-1.5 text-center text-xs text-neutral-400 hover:text-amber-400 border border-dashed border-neutral-800 hover:border-amber-400/40 rounded-xl transition flex items-center justify-center gap-1.5"
-                                      >
-                                        <Plus className="w-3.5 h-3.5" />
-                                        <span>Create New Playlist</span>
-                                      </button>
-                                    ) : (
-                                      <div className="flex items-center gap-1.5 pt-1">
-                                        <input
-                                          type="text"
-                                          autoFocus
-                                          placeholder="Playlist name..."
-                                          value={newPlaylistInlineName}
-                                          onChange={(e) => setNewPlaylistInlineName(e.target.value)}
-                                          onKeyDown={(e) => {
-                                            if (e.key === 'Enter') {
-                                              e.preventDefault();
-                                              if (newPlaylistInlineName.trim()) {
-                                                onCreatePlaylistWithSkill?.(newPlaylistInlineName.trim(), editingSkill.id);
-                                                setNewPlaylistInlineName('');
-                                                setIsCreatingPlaylistInline(false);
-                                              }
-                                            }
-                                            if (e.key === 'Escape') {
-                                              setIsCreatingPlaylistInline(false);
-                                            }
-                                          }}
-                                          className="flex-1 bg-neutral-950 border border-neutral-800 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-amber-400"
-                                        />
-                                        <button
-                                          type="button"
-                                          onClick={() => {
-                                            if (newPlaylistInlineName.trim()) {
-                                              onCreatePlaylistWithSkill?.(newPlaylistInlineName.trim(), editingSkill.id);
-                                              setNewPlaylistInlineName('');
-                                              setIsCreatingPlaylistInline(false);
-                                            }
-                                          }}
-                                          className="px-2.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold text-xs transition"
-                                        >
-                                          Add
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick={() => setIsCreatingPlaylistInline(false)}
-                                          className="p-1.5 rounded-xl text-neutral-400 hover:text-white"
-                                        >
-                                          <X className="w-3.5 h-3.5" />
-                                        </button>
-                                      </div>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-
-                              <div className="flex gap-2 pt-1">
-                                <button
-                                  type="button"
-                                  onClick={() => setEditingSkill(null)}
-                                  className="flex-1 py-2.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-xl font-bold text-xs transition"
-                                >
-                                  Cancel
-                                </button>
-                                <button
-                                  type="submit"
-                                  className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-400 text-neutral-950 rounded-xl font-bold text-xs transition"
-                                >
-                                  Save Settings
-                                </button>
-                              </div>
-                            </form>
-                          </div>
-                        );
+                        return renderSkillEditForm(skill);
                       }
 
                       const isDeparting = departingSkillId === skill.id;
@@ -1075,292 +1086,11 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
                     {hibernatedExpanded && (
                       <div className="space-y-2">
                         {hibernatedSkills.map((skill) => {
-                          const history = storageManager.getSkillHistory(skill.id);
+                          const history = historyBySkillId.get(skill.id) ?? [];
                           const isEditingThisSkill = editingSkill?.id === skill.id;
 
                           if (isEditingThisSkill) {
-                            return (
-                              <div
-                                key={skill.id}
-                                className="bg-neutral-950 border border-neutral-800 rounded-2xl p-4 animate-in fade-in"
-                              >
-                                <div className="flex items-center justify-between mb-3">
-                                  <span className="text-xs uppercase font-mono font-bold text-neutral-300 flex items-center gap-1.5">
-                                    <Pencil className="w-3.5 h-3.5 text-amber-400" />
-                                    Practice Settings
-                                  </span>
-                                  <button
-                                    type="button"
-                                    onClick={() => setEditingSkill(null)}
-                                    className="text-xs text-neutral-500 hover:text-neutral-300"
-                                  >
-                                    Cancel
-                                  </button>
-                                </div>
-
-                                <form onSubmit={handleSaveEdit} className="space-y-3">
-                                  <div>
-                                    <label className="text-[11px] text-neutral-400 block mb-1">
-                                      Skill or Fill Name *
-                                    </label>
-                                    <input
-                                      type="text"
-                                      required
-                                      placeholder="e.g. Single Stroke Roll"
-                                      value={editTitle}
-                                      onChange={(e) => setEditTitle(e.target.value)}
-                                      className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
-                                    />
-                                  </div>
-
-                                  <div>
-                                    <label className="text-[11px] text-neutral-400 block mb-1">
-                                      Sticking Pattern / Notation (Optional)
-                                    </label>
-                                    <input
-                                      type="text"
-                                      placeholder="e.g. R l r r L r ll (capital letters for accents)"
-                                      value={editSticking}
-                                      onChange={(e) => setEditSticking(e.target.value)}
-                                      className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-amber-400"
-                                    />
-                                  </div>
-
-                                  <div>
-                                    <label className="text-[11px] text-neutral-400 block mb-1">
-                                      Performance Notes (Optional)
-                                    </label>
-                                    <textarea
-                                      rows={2}
-                                      placeholder="e.g. Focus on even dynamic rebound..."
-                                      value={editNotes}
-                                      onChange={(e) => setEditNotes(e.target.value)}
-                                      className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white resize-none focus:outline-none focus:border-amber-400"
-                                    />
-                                  </div>
-
-                                  {/* Practice Tempo, Default Subdivision, and Triplets on the same row */}
-                                  <div className="grid grid-cols-12 gap-2.5 items-end">
-                                    <div className="col-span-5">
-                                      <label className="text-[11px] text-neutral-400 block mb-1 truncate">
-                                        Practice Tempo
-                                      </label>
-                                      <div className="flex items-center gap-1.5">
-                                        <input
-                                          type="number"
-                                          min="1"
-                                          max="300"
-                                          value={editPb}
-                                          onChange={(e) => {
-                                            const val = e.target.value;
-                                            setEditPb(val === '' ? '' : parseInt(val, 10));
-                                          }}
-                                          className="w-full min-w-0 bg-neutral-900 border border-neutral-800 rounded-xl px-2.5 py-2 text-xs text-white font-mono focus:outline-none focus:border-amber-400"
-                                        />
-                                        <button
-                                          type="button"
-                                          onClick={handleEditTap}
-                                          title="Tap tempo"
-                                          className="h-[34px] px-2.5 sm:px-3 bg-neutral-800 hover:bg-neutral-700 active:bg-amber-500 active:text-neutral-950 active:border-amber-400 border border-neutral-700/80 text-white font-semibold text-xs rounded-xl transition-all duration-75 flex items-center justify-center shrink-0 shadow-sm active:scale-95 select-none"
-                                        >
-                                          Tap
-                                        </button>
-                                      </div>
-                                    </div>
-
-                                    <div className="col-span-5">
-                                      <label className="text-[11px] text-neutral-400 block mb-1">
-                                        Default Subdivision
-                                      </label>
-                                      <select
-                                        value={editSubdivision}
-                                        onChange={(e) => setEditSubdivision(e.target.value as Subdivision)}
-                                        className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-2 py-2 text-xs text-white bg-transparent focus:outline-none focus:border-amber-400"
-                                      >
-                                        <option value="1/4" className="bg-neutral-900">1/4 Note</option>
-                                        <option value="1/8" className="bg-neutral-900">1/8 Note</option>
-                                        <option value="1/16" className="bg-neutral-900">1/16 Note</option>
-                                      </select>
-                                    </div>
-
-                                    <div className="col-span-2 flex flex-col items-end justify-end">
-                                      <label className="text-[11px] text-neutral-400 block mb-1 w-full text-right">
-                                        Triplets?
-                                      </label>
-                                      <div className="h-[34px] flex items-center justify-end w-full">
-                                        <input
-                                          type="checkbox"
-                                          checked={editIsTriplet}
-                                          onChange={(e) => setEditIsTriplet(e.target.checked)}
-                                          className="w-4 h-4 rounded bg-neutral-900 border-neutral-700 text-amber-500 focus:ring-0 cursor-pointer"
-                                        />
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  {/* Quick Actions centered with individual dark grey outlines and pipe dividers */}
-                                  <div className="pt-2 border-t border-neutral-850">
-                                    <div className="text-[10px] uppercase font-mono tracking-wider text-neutral-400 mb-1.5 flex justify-between items-center px-1">
-                                      <span>Quick Actions</span>
-                                      {duplicateSuccessText && (
-                                        <span className="text-emerald-400 font-sans text-xs animate-in fade-in">
-                                          {duplicateSuccessText}
-                                        </span>
-                                      )}
-                                    </div>
-
-                                    <div className="flex items-center justify-center gap-2 py-1">
-                                      {/* 1. Invert Button with Tap Confirmation */}
-                                      {activeConfirmAction === 'invert' ? (
-                                        <button
-                                          type="button"
-                                          onClick={() => triggerConfirmAction('invert', handleInvertEdit)}
-                                          className="px-3 py-1.5 rounded-xl bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 border border-amber-500/50 text-[11px] font-bold flex items-center gap-1.5 animate-in fade-in shadow-sm"
-                                          title="Click again to confirm invert"
-                                        >
-                                          <ArrowLeftRight className="w-3.5 h-3.5" />
-                                          <span>Invert?</span>
-                                        </button>
-                                      ) : (
-                                        <button
-                                          type="button"
-                                          onClick={() => triggerConfirmAction('invert', handleInvertEdit)}
-                                          className="p-2 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-neutral-400 hover:text-amber-400 active:scale-95 transition flex items-center justify-center shadow-sm"
-                                          title="Invert Sticking (R ⇄ L) & update title"
-                                        >
-                                          <ArrowLeftRight className="w-4 h-4" />
-                                        </button>
-                                      )}
-
-                                      {/* Pipe divider */}
-                                      <div className="h-4 w-[1px] bg-neutral-800" />
-
-                                      {/* 2. Duplicate Button with Tap Confirmation */}
-                                      {activeConfirmAction === 'duplicate' ? (
-                                        <button
-                                          type="button"
-                                          onClick={() => triggerConfirmAction('duplicate', handleDuplicateEdit)}
-                                          disabled={isDuplicating}
-                                          className="px-3 py-1.5 rounded-xl bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border border-emerald-500/50 text-[11px] font-bold flex items-center gap-1.5 animate-in fade-in shadow-sm disabled:opacity-50"
-                                          title="Click again to duplicate"
-                                        >
-                                          <Copy className={`w-3.5 h-3.5 ${isDuplicating ? 'animate-spin' : ''}`} />
-                                          <span>Duplicate?</span>
-                                        </button>
-                                      ) : (
-                                        <button
-                                          type="button"
-                                          onClick={() => triggerConfirmAction('duplicate', handleDuplicateEdit)}
-                                          disabled={isDuplicating}
-                                          className="p-2 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-neutral-400 hover:text-emerald-400 active:scale-95 transition flex items-center justify-center shadow-sm disabled:opacity-50"
-                                          title="Duplicate this skill into the queue"
-                                        >
-                                          <Copy className={`w-4 h-4 ${isDuplicating ? 'animate-spin' : ''}`} />
-                                        </button>
-                                      )}
-
-                                      {/* Pipe divider */}
-                                      <div className="h-4 w-[1px] bg-neutral-800" />
-
-                                      {/* 3. Hibernate / Wake Button with Tap Confirmation */}
-                                      {activeConfirmAction === 'hibernate' ? (
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            triggerConfirmAction('hibernate', () => {
-                                              onHibernateSkill(editingSkill.id);
-                                              setEditingSkill(null);
-                                            })
-                                          }
-                                          className="px-3 py-1.5 rounded-xl bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 border border-purple-500/50 text-[11px] font-bold flex items-center gap-1.5 animate-in fade-in shadow-sm"
-                                          title={editingSkill.isHibernated ? 'Click again to wake up' : 'Click again to hibernate'}
-                                        >
-                                          {editingSkill.isHibernated ? (
-                                            <>
-                                              <Sun className="w-3.5 h-3.5" />
-                                              <span>Wake?</span>
-                                            </>
-                                          ) : (
-                                            <>
-                                              <span className="tracking-tighter font-mono font-bold">zZz</span>
-                                              <span>Hibernate?</span>
-                                            </>
-                                          )}
-                                        </button>
-                                      ) : (
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            triggerConfirmAction('hibernate', () => {
-                                              onHibernateSkill(editingSkill.id);
-                                              setEditingSkill(null);
-                                            })
-                                          }
-                                          className="p-2 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-neutral-400 hover:text-purple-400 active:scale-95 transition flex items-center justify-center shadow-sm font-mono font-bold text-xs"
-                                          title={editingSkill.isHibernated ? 'Wake up skill' : 'Hibernate skill (zZz)'}
-                                        >
-                                          {editingSkill.isHibernated ? (
-                                            <Sun className="w-4 h-4 text-purple-300" />
-                                          ) : (
-                                            <span className="tracking-tighter">zZz</span>
-                                          )}
-                                        </button>
-                                      )}
-
-                                      {/* Pipe divider */}
-                                      <div className="h-4 w-[1px] bg-neutral-800" />
-
-                                      {/* 4. Delete Button with Tap Confirmation Safety */}
-                                      {activeConfirmAction === 'delete' ? (
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            triggerConfirmAction('delete', () => {
-                                              setEditingSkill(null);
-                                              onDeleteSkill(editingSkill.id);
-                                            })
-                                          }
-                                          className="px-3 py-1.5 rounded-xl bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/50 text-[11px] font-bold flex items-center gap-1.5 animate-in fade-in shadow-sm"
-                                          title="Click again to permanently delete"
-                                        >
-                                          <Trash2 className="w-3.5 h-3.5" />
-                                          <span>Delete?</span>
-                                        </button>
-                                      ) : (
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            triggerConfirmAction('delete', () => {
-                                              setEditingSkill(null);
-                                              onDeleteSkill(editingSkill.id);
-                                            })
-                                          }
-                                          className="p-2 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-neutral-400 hover:text-red-400 active:scale-95 transition flex items-center justify-center shadow-sm"
-                                          title="Delete Skill"
-                                        >
-                                          <Trash2 className="w-4 h-4" />
-                                        </button>
-                                      )}
-                                    </div>
-                                  </div>
-                                  <div className="flex gap-2 pt-1">
-                                    <button
-                                      type="button"
-                                      onClick={() => setEditingSkill(null)}
-                                      className="flex-1 py-2.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-xl font-bold text-xs transition"
-                                    >
-                                      Cancel
-                                    </button>
-                                    <button
-                                      type="submit"
-                                      className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-400 text-neutral-950 rounded-xl font-bold text-xs transition"
-                                    >
-                                      Save Settings
-                                    </button>
-                                  </div>
-                                </form>
-                              </div>
-                            );
+                            return renderSkillEditForm(skill);
                           }
 
                           return (

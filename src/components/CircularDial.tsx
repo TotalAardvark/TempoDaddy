@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { Minus, Plus } from 'lucide-react';
 import type { MetronomeTickEvent } from '../audio/metronomeEngine';
+import { MIN_BPM, MAX_BPM } from '../types';
 
 interface CircularDialProps {
   bpm: number;
@@ -14,8 +15,8 @@ interface CircularDialProps {
 
 export const CircularDial: React.FC<CircularDialProps> = ({
   bpm,
-  minBpm = 40,
-  maxBpm = 260,
+  minBpm = MIN_BPM,
+  maxBpm = MAX_BPM,
   onBpmChange,
   lastTick,
   isPlaying,
