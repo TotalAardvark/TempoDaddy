@@ -32,6 +32,7 @@ Tracking file for feature requests, ideas, and backlog tasks.
 | FR-007 | Expanded built-in skills library with folder structure | P0 | C1 | Open |
 | FR-008 | Expanded skill functionality (embedded media: image, MIDI, tab, audio, YT) | P0 | C2 | Open |
 | FR-014 | Per-skill Tempo Ramp overrides & opt-out | P0 | C1 | Open |
+| FR-016 | Trophy Case & Achievements System (Interactive completion trophy) | P0 | C2 | Open |
 
 ### Completed Feature Requests
 
@@ -138,6 +139,18 @@ Tracking file for feature requests, ideas, and backlog tasks.
   - Keeps friction low via progressive disclosure in the skill edit interface while enabling custom warmup runways (or disabling ramps on groove/microtiming drills).
 - **Design & Technical Plan**:
   - See detailed specification and UX architecture in [docs/plans/tempo_ramp_per_skill_plan.md](file:///Users/pablo/Documents/antigravity/cool-heisenberg/docs/plans/tempo_ramp_per_skill_plan.md) (also archived in brain artifacts [tempo_ramp_per_skill_plan.md](file:///Users/pablo/.gemini/antigravity/brain/34e9ee6e-9ead-4cc3-82cc-db376e5eb707/tempo_ramp_per_skill_plan.md)).
+
+#### [FR-016] Trophy Case & Achievements System (Interactive Completion Trophy)
+- **Priority**: P0 (Low)
+- **Complexity**: C2 (Medium-High)
+- **Status**: Open
+- **Description**:
+  - Make the large trophy on the `RoutineCompleteScreen` interactive by opening a dedicated **Trophy Case** / **Achievements** modal when pressed.
+  - Implement milestone badges & trophies tracking practice consistency and progression, such as:
+    - **Streak Milestones**: 3-day streak, 7-day streak, 30-day streak, 5/7 days weekly consistency.
+    - **PB Milestones**: 5 PBs, 10 PBs, 15 PBs, 25 PBs, 50 PBs.
+    - **Feature & Engagement Milestones**: Import a playlist/routine, create first custom exercise, log first 100 practice minutes.
+  - Include interactive celebration / haptics when tapping the completion trophy to view unlocked achievements and progress towards upcoming trophies.
 
 ---
 

@@ -184,7 +184,9 @@ export default function App() {
         }
         return event;
       });
-      setBpm((prev) => (prev !== event.bpm ? event.bpm : prev));
+      if (rampStateRef.current.active) {
+        setBpm((prev) => (prev !== event.bpm ? event.bpm : prev));
+      }
     });
     engineRef.current = engine;
 
