@@ -25,6 +25,9 @@ export const CircularDial: React.FC<CircularDialProps> = ({
   onOpenTempoRamp,
 }) => {
   const dialRef = useRef<HTMLDivElement>(null);
+  const glowRef = useRef<HTMLDivElement>(null);
+  const innerKnobRef = useRef<HTMLDivElement>(null);
+  const pulseDotRef = useRef<HTMLSpanElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const dragTracking = useRef<{
     lastAngle: number;
@@ -121,10 +124,103 @@ export const CircularDial: React.FC<CircularDialProps> = ({
     return () => el.removeEventListener('wheel', onWheel);
   }, [bpm, maxBpm, minBpm, onBpmChange]);
 
-  // Tick visual styling
-  const isAccent = lastTick?.isDownbeat && isPlaying;
-  const isBeat = lastTick?.isQuarterBeat && !lastTick?.isDownbeat && isPlaying;
-  const isSub = !lastTick?.isQuarterBeat && isPlaying;
+  // Trigger instant-attack, tempo-scaled visual flashes on every tick
+  useEffect(() => {
+    if (!isPlaying || !lastTick) return;
+
+    // Tick interval in ms (tempo-proportional decay)
+    const tickIntervalMs = (60 / bpm / Math.max(1, lastTick.totalTicksPerMeasure / 4)) * 1000;
+    // Bound flash duration between 40ms (high tempo) and 130ms (slow tempo)
+    const decayMs = Math.min(130, Math.max(40, tickIntervalMs * 0.55));
+
+    const isDownbeat = lastTick.isDownbeat;
+    const isQuarter = lastTick.isQuarterBeat;
+
+    // 1. Glow backdrop flash
+    if (glowRef.current) {
+      if (isDownbeat) {
+        glowRef.current.animate(
+          [
+            { opacity: 1, backgroundColor: 'rgba(245, 158, 11, 0.25)', transform: 'scale(1.05)' },
+            { opacity: 0, backgroundColor: 'rgba(245, 158, 11, 0)', transform: 'scale(1.0)' },
+          ],
+          { duration: decayMs * 1.2, easing: 'cubic-bezier(0, 0, 0.2, 1)', fill: 'forwards' }
+        );
+      } else if (isQuarter) {
+        glowRef.current.animate(
+          [
+            { opacity: 0.65, backgroundColor: 'rgba(6, 182, 212, 0.2)', transform: 'scale(1.02)' },
+            { opacity: 0, backgroundColor: 'rgba(6, 182, 212, 0)', transform: 'scale(1.0)' },
+          ],
+          { duration: decayMs, easing: 'cubic-bezier(0, 0, 0.2, 1)', fill: 'forwards' }
+        );
+      }
+    }
+
+    // 2. Inner Knob Border & Shadow Flash
+    if (innerKnobRef.current) {
+      if (isDownbeat) {
+        innerKnobRef.current.animate(
+          [
+            {
+              borderColor: '#fbbf24',
+              boxShadow: '0 0 25px rgba(245, 158, 11, 0.45), inset 0 0 15px rgba(245, 158, 11, 0.25)',
+              transform: 'scale(1.02)',
+            },
+            {
+              borderColor: '#404040',
+              boxShadow: 'none',
+              transform: 'scale(1.0)',
+            },
+          ],
+          { duration: decayMs * 1.1, easing: 'cubic-bezier(0, 0, 0.2, 1)', fill: 'forwards' }
+        );
+      } else if (isQuarter) {
+        innerKnobRef.current.animate(
+          [
+            {
+              borderColor: '#22d3ee',
+              boxShadow: '0 0 18px rgba(6, 182, 212, 0.35), inset 0 0 10px rgba(6, 182, 212, 0.15)',
+              transform: 'scale(1.01)',
+            },
+            {
+              borderColor: '#404040',
+              boxShadow: 'none',
+              transform: 'scale(1.0)',
+            },
+          ],
+          { duration: decayMs, easing: 'cubic-bezier(0, 0, 0.2, 1)', fill: 'forwards' }
+        );
+      }
+    }
+
+    // 3. Center Pulse Dot Flash
+    if (pulseDotRef.current) {
+      const dotColor = isDownbeat ? '#fbbf24' : isQuarter ? '#22d3ee' : '#a3a3a3';
+      const dotScale = isDownbeat ? 1.45 : isQuarter ? 1.2 : 0.95;
+      const dotShadow = isDownbeat
+        ? '0 0 8px #fbbf24'
+        : isQuarter
+        ? '0 0 6px #22d3ee'
+        : 'none';
+
+      pulseDotRef.current.animate(
+        [
+          {
+            backgroundColor: dotColor,
+            transform: `scale(${dotScale})`,
+            boxShadow: dotShadow,
+          },
+          {
+            backgroundColor: '#262626',
+            transform: 'scale(1.0)',
+            boxShadow: 'none',
+          },
+        ],
+        { duration: decayMs, easing: 'cubic-bezier(0, 0, 0.2, 1)', fill: 'forwards' }
+      );
+    }
+  }, [isPlaying, lastTick, bpm]);
 
   // Arc path constants
   const size = 260;
@@ -148,15 +244,10 @@ export const CircularDial: React.FC<CircularDialProps> = ({
           isDragging ? 'scale-102 shadow-2xl shadow-amber-500/10' : ''
         }`}
       >
-        {/* Glow backdrop on downbeat accent */}
+        {/* Glow backdrop on downbeat / quarterbeat accent */}
         <div
-          className={`absolute inset-4 rounded-full transition-opacity duration-100 pointer-events-none ${
-            isAccent
-              ? 'opacity-100 bg-amber-500/20 blur-xl'
-              : isBeat
-              ? 'opacity-40 bg-cyan-500/15 blur-lg'
-              : 'opacity-0'
-          }`}
+          ref={glowRef}
+          className="absolute inset-4 rounded-full opacity-0 pointer-events-none blur-xl will-change-[opacity,transform]"
         />
 
         {/* SVG Circular Track & Progress Arc */}
@@ -203,26 +294,14 @@ export const CircularDial: React.FC<CircularDialProps> = ({
 
         {/* Inner Knob Wheel */}
         <div
-          className={`w-52 h-52 rounded-full bg-neutral-900 border-2 flex flex-col items-center justify-center shadow-inner relative transition-colors ${
-            isAccent
-              ? 'border-amber-400 shadow-amber-500/30'
-              : isBeat
-              ? 'border-cyan-400/80 shadow-cyan-500/20'
-              : 'border-neutral-700'
-          }`}
+          ref={innerKnobRef}
+          className="w-52 h-52 rounded-full bg-neutral-900 border-2 border-neutral-700 flex flex-col items-center justify-center shadow-inner relative will-change-[border-color,box-shadow,transform]"
         >
           {/* Sub visual pulse dots */}
           <div className="flex gap-1.5 mb-1.5 items-center">
             <span
-              className={`w-2.5 h-2.5 rounded-full transition-all duration-75 ${
-                isAccent
-                  ? 'bg-amber-400 scale-135 shadow-sm shadow-amber-400'
-                  : isBeat
-                  ? 'bg-cyan-400 scale-110'
-                  : isSub
-                  ? 'bg-neutral-500 scale-90'
-                  : 'bg-neutral-800'
-              }`}
+              ref={pulseDotRef}
+              className="w-2.5 h-2.5 rounded-full bg-neutral-850 will-change-[background-color,transform,box-shadow]"
             />
           </div>
 

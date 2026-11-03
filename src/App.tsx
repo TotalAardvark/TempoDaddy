@@ -174,16 +174,7 @@ export default function App() {
       return nextBpm;
     });
     engine.setOnTick((event) => {
-      setLastTick((prev) => {
-        if (
-          prev &&
-          prev.isDownbeat === event.isDownbeat &&
-          prev.isQuarterBeat === event.isQuarterBeat
-        ) {
-          return prev;
-        }
-        return event;
-      });
+      setLastTick(event);
       if (rampStateRef.current.active) {
         setBpm((prev) => (prev !== event.bpm ? event.bpm : prev));
       }

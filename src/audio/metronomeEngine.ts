@@ -6,6 +6,8 @@ export interface MetronomeTickEvent {
   isDownbeat: boolean;
   isQuarterBeat: boolean;
   bpm: number;
+  tickId: number;
+  audioTime: number;
 }
 
 export class MetronomeEngine {
@@ -21,6 +23,7 @@ export class MetronomeEngine {
   private currentTick: number = 0;
   private nextTickTime: number = 0;
   private timerId: number | null = null;
+  private tickCounter: number = 0;
   private lookaheadMs: number = 25; // How often to check for upcoming notes (ms)
   private scheduleAheadTime: number = 0.1; // How far ahead to schedule audio (seconds)
 
@@ -193,7 +196,11 @@ export class MetronomeEngine {
 
     // Trigger visual callback synchronized to when the sound actually plays
     if (this.onTickCallback) {
-      const timeUntilPlay = Math.max(0, (time - this.audioCtx.currentTime) * 1000);
+      const currentTickId = ++this.tickCounter;
+      // Subtract display latency offset (~12ms, approximately 1 animation frame) so peak brightness
+      // is rendered right as the audio transient arrives.
+      const DISPLAY_LEAD_MS = 12;
+      const timeUntilPlay = Math.max(0, (time - this.audioCtx.currentTime) * 1000 - DISPLAY_LEAD_MS);
       const timerId = window.setTimeout(() => {
         this.visualTimerIds = this.visualTimerIds.filter((id) => id !== timerId);
         if (this.isRunning && this.onTickCallback) {
@@ -203,6 +210,8 @@ export class MetronomeEngine {
             isDownbeat,
             isQuarterBeat,
             bpm: scheduledBpm,
+            tickId: currentTickId,
+            audioTime: time,
           });
         }
       }, timeUntilPlay);
