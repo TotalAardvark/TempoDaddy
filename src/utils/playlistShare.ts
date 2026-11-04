@@ -155,3 +155,24 @@ export function decodePlaylistFromHash(hashOrPayload: string): SharedPlaylistBun
     return null;
   }
 }
+
+/**
+ * Returns a unique playlist name by appending " (2)", " (3)", etc. if a playlist
+ * with the target name already exists.
+ */
+export function getUniquePlaylistName(desiredName: string, existingNames: string[]): string {
+  const trimmed = desiredName.trim() || 'New Routine';
+  const existingSet = new Set(existingNames.map((n) => n.trim().toLowerCase()));
+
+  if (!existingSet.has(trimmed.toLowerCase())) {
+    return trimmed;
+  }
+
+  // Base pattern without existing " (N)" suffix
+  const baseName = trimmed.replace(/\s\(\d+\)$/, '');
+  let counter = 2;
+  while (existingSet.has(`${baseName} (${counter})`.toLowerCase())) {
+    counter++;
+  }
+  return `${baseName} (${counter})`;
+}

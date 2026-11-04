@@ -1,21 +1,35 @@
-import React from 'react';
-import { X, ListMusic, Download } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, ListMusic, Download, Pencil } from 'lucide-react';
 import { DEFAULT_IMPORTED_BPM, type SharedPlaylistBundle } from '../utils/playlistShare';
 
 interface ImportPlaylistModalProps {
   isOpen: boolean;
   bundle: SharedPlaylistBundle | null;
-  onConfirmImport: (bundle: SharedPlaylistBundle) => void;
+  defaultName?: string;
+  onConfirmImport: (bundle: SharedPlaylistBundle, finalName: string) => void;
   onCancel: () => void;
 }
 
 export const ImportPlaylistModal: React.FC<ImportPlaylistModalProps> = ({
   isOpen,
   bundle,
+  defaultName,
   onConfirmImport,
   onCancel,
 }) => {
+  const [playlistName, setPlaylistName] = useState('');
+  const [isEditingName, setIsEditingName] = useState(false);
+
+  useEffect(() => {
+    if (bundle) {
+      setPlaylistName(defaultName || bundle.name);
+      setIsEditingName(false);
+    }
+  }, [bundle, defaultName]);
+
   if (!isOpen || !bundle) return null;
+
+  const currentDisplayName = playlistName.trim() || bundle.name;
 
   return (
     <div
@@ -28,23 +42,46 @@ export const ImportPlaylistModal: React.FC<ImportPlaylistModalProps> = ({
       >
         {/* Header */}
         <div className="p-5 border-b border-neutral-800 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-amber-500/20 text-amber-400">
+          <div className="flex items-center gap-2.5 min-w-0 flex-1 mr-2">
+            <div className="p-2 rounded-xl bg-amber-500/20 text-amber-400 shrink-0">
               <ListMusic className="w-5 h-5" />
             </div>
-            <div>
+            <div className="min-w-0 flex-1">
               <h2 className="text-base font-bold text-white leading-tight">
                 Import Playlist
               </h2>
-              <p className="text-xs text-amber-400 font-semibold truncate max-w-[240px]">
-                {bundle.name}
-              </p>
+              {isEditingName ? (
+                <div className="flex items-center gap-1.5 mt-1">
+                  <input
+                    type="text"
+                    value={playlistName}
+                    onChange={(e) => setPlaylistName(e.target.value)}
+                    onBlur={() => setIsEditingName(false)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') setIsEditingName(false);
+                    }}
+                    autoFocus
+                    placeholder="Playlist name"
+                    className="w-full bg-neutral-950 border border-amber-500/50 rounded-lg px-2 py-0.5 text-xs text-amber-300 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                  />
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setIsEditingName(true)}
+                  className="flex items-center gap-1 text-xs text-amber-400 font-semibold truncate hover:text-amber-300 transition group text-left max-w-full"
+                  title="Click to rename"
+                >
+                  <span className="truncate">{currentDisplayName}</span>
+                  <Pencil className="w-3 h-3 text-neutral-500 group-hover:text-amber-400 shrink-0 transition" />
+                </button>
+              )}
             </div>
           </div>
           <button
             type="button"
             onClick={onCancel}
-            className="p-1.5 rounded-full text-neutral-400 hover:text-white hover:bg-neutral-800 transition"
+            className="p-1.5 rounded-full text-neutral-400 hover:text-white hover:bg-neutral-800 transition shrink-0"
           >
             <X className="w-5 h-5" />
           </button>
@@ -103,7 +140,7 @@ export const ImportPlaylistModal: React.FC<ImportPlaylistModalProps> = ({
           </button>
           <button
             type="button"
-            onClick={() => onConfirmImport(bundle)}
+            onClick={() => onConfirmImport(bundle, currentDisplayName)}
             className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold text-xs flex items-center gap-1.5 transition shadow-sm cursor-pointer"
           >
             <Download className="w-3.5 h-3.5" />

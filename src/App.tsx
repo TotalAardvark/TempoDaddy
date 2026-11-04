@@ -39,6 +39,7 @@ import { wakeLockManager } from './utils/wakeLock';
 import {
   decodePlaylistFromHash,
   DEFAULT_IMPORTED_BPM,
+  getUniquePlaylistName,
   type SharedPlaylistBundle,
 } from './utils/playlistShare';
 
@@ -1022,8 +1023,13 @@ export default function App() {
     }
   };
 
-  const handleConfirmImportPlaylist = (bundle: SharedPlaylistBundle) => {
+  const handleConfirmImportPlaylist = (bundle: SharedPlaylistBundle, finalName?: string) => {
     const currentSkills = storageManager.getSkills();
+    const existingPlaylists = storageManager.getPlaylists();
+    const resolvedName = (finalName && finalName.trim())
+      ? finalName.trim()
+      : getUniquePlaylistName(bundle.name, existingPlaylists.map((p) => p.name));
+
     const nowIso = new Date().toISOString();
     const baseTime = Date.now();
 
@@ -1040,12 +1046,14 @@ export default function App() {
       notes: item.n,
     }));
 
+    const newSkillIds = importedSkills.map((s) => s.id);
+
+    // Create playlist with skill IDs directly attached so orphaned skill rescue never captures them
+    const newPlaylist = storageManager.createPlaylist(resolvedName, newSkillIds);
+
     const allUpdatedSkills = [...currentSkills, ...importedSkills];
     storageManager.saveSkills(allUpdatedSkills);
 
-    const newPlaylist = storageManager.createPlaylist(bundle.name);
-    const newSkillIds = importedSkills.map((s) => s.id);
-    storageManager.updatePlaylist(newPlaylist.id, { skillIds: newSkillIds });
     storageManager.setActivePlaylistId(newPlaylist.id);
 
     const updatedPlaylists = storageManager.getPlaylists();
@@ -1127,6 +1135,14 @@ export default function App() {
       <ImportPlaylistModal
         isOpen={Boolean(pendingImportBundle)}
         bundle={pendingImportBundle}
+        defaultName={
+          pendingImportBundle
+            ? getUniquePlaylistName(
+                pendingImportBundle.name,
+                playlists.map((p) => p.name)
+              )
+            : undefined
+        }
         onConfirmImport={handleConfirmImportPlaylist}
         onCancel={handleCancelImportPlaylist}
       />

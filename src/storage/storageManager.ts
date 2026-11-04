@@ -189,12 +189,12 @@ export const storageManager = {
     }
   },
 
-  createPlaylist(name: string): Playlist {
+  createPlaylist(name: string, initialSkillIds: string[] = []): Playlist {
     const playlists = this.getPlaylists();
     const newPlaylist: Playlist = {
       id: `pl_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
       name: name.trim() || 'New Routine',
-      skillIds: [],
+      skillIds: [...initialSkillIds],
       createdAt: new Date().toISOString(),
       lastPlayedAt: new Date().toISOString(),
     };
