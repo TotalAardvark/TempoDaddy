@@ -25,7 +25,7 @@ interface PlaylistsModalProps {
   onCreatePlaylist: (name: string) => void;
   onRenamePlaylist: (id: string, newName: string) => void;
   onDuplicatePlaylist: (id: string) => void;
-  onDeletePlaylist: (id: string) => void;
+  onDeletePlaylist: (id: string, deleteSkillsFromAllPlaylists?: boolean) => void;
 }
 
 export const PlaylistsModal: React.FC<PlaylistsModalProps> = ({
@@ -46,6 +46,7 @@ export const PlaylistsModal: React.FC<PlaylistsModalProps> = ({
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameText, setRenameText] = useState('');
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [confirmDeleteAllSkills, setConfirmDeleteAllSkills] = useState(false);
   const [sharePlaylist, setSharePlaylist] = useState<Playlist | null>(null);
 
   if (!isOpen) return null;
@@ -408,7 +409,7 @@ export const PlaylistsModal: React.FC<PlaylistsModalProps> = ({
       </div>
 
       {/* Delete Playlist Confirmation Modal */}
-      {playlistToDelete && (
+      {playlistToDelete && !confirmDeleteAllSkills && (
         <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-sm w-full p-5 space-y-4 shadow-2xl">
             <div className="flex items-center gap-2 text-amber-400">
@@ -424,23 +425,69 @@ export const PlaylistsModal: React.FC<PlaylistsModalProps> = ({
                 'All skills in this playlist also exist in other playlists and will remain safely preserved.'
               )}
             </p>
-            <div className="flex items-center justify-end gap-2 pt-2">
+            <div className="flex flex-col gap-2 pt-2">
               <button
                 type="button"
-                onClick={() => setConfirmDeleteId(null)}
-                className="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-neutral-400 hover:text-white hover:bg-neutral-800 transition"
+                onClick={() => {
+                  onDeletePlaylist(playlistToDelete.id, false);
+                  setConfirmDeleteId(null);
+                  setConfirmDeleteAllSkills(false);
+                }}
+                className="w-full py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold text-xs transition shadow-sm text-center"
               >
-                Cancel
+                Delete Playlist And Keep Skills
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmDeleteAllSkills(true)}
+                className="w-full py-2.5 px-4 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white font-semibold text-xs transition shadow-sm text-center"
+              >
+                Delete Playlist And All Skills
               </button>
               <button
                 type="button"
                 onClick={() => {
-                  onDeletePlaylist(playlistToDelete.id);
                   setConfirmDeleteId(null);
+                  setConfirmDeleteAllSkills(false);
                 }}
-                className="px-4 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold text-xs transition shadow-sm"
+                className="pt-1.5 text-center text-xs font-semibold text-neutral-400 hover:text-white transition"
               >
-                Delete Playlist
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Secondary Confirmation Modal: Delete Playlist And All Skills */}
+      {playlistToDelete && confirmDeleteAllSkills && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-sm w-full p-5 space-y-4 shadow-2xl">
+            <div className="flex items-center gap-2 text-rose-400">
+              <Trash2 className="w-5 h-5 text-rose-400" />
+              <h3 className="text-sm font-bold text-white">Delete Playlist & All Skills?</h3>
+            </div>
+            <p className="text-xs text-neutral-300 leading-relaxed">
+              Are you sure you want to delete the playlist as well as delete the skills from all other playlists?
+            </p>
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setConfirmDeleteAllSkills(false)}
+                className="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-neutral-400 hover:text-white hover:bg-neutral-800 transition"
+              >
+                Back
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onDeletePlaylist(playlistToDelete.id, true);
+                  setConfirmDeleteId(null);
+                  setConfirmDeleteAllSkills(false);
+                }}
+                className="px-4 py-1.5 rounded-xl bg-rose-500 hover:bg-rose-400 text-white font-bold text-xs transition shadow-sm"
+              >
+                Delete Everything
               </button>
             </div>
           </div>

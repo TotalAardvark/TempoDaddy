@@ -969,8 +969,8 @@ export default function App() {
     triggerDebouncedCloudSync();
   };
 
-  const handleDeletePlaylist = (id: string) => {
-    const { remainingPlaylists } = storageManager.deletePlaylist(id);
+  const handleDeletePlaylist = (id: string, deleteSkillsFromAllPlaylists: boolean = false) => {
+    const { remainingPlaylists } = storageManager.deletePlaylist(id, deleteSkillsFromAllPlaylists);
     setPlaylists(remainingPlaylists);
     setSkills(storageManager.getSkills());
     const nextActive = storageManager.getActivePlaylistId();

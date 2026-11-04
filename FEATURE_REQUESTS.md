@@ -18,14 +18,18 @@ Tracking file for feature requests, ideas, and backlog tasks.
 
 ## Quick Reference Index
 
-### Open Feature Requests
+### Open Feature Requests & Bugs
 
 | ID | Title | Priority | Complexity | Status |
 |---|---|:---:|:---:|:---:|
+| FR-017 | iOS PWA audio loss on app minimize / background resume | P3 | C1 | Open |
 | FR-009 | Onboarding experience design for new users | P3 | C2 | Open |
 | FR-010 | Text size accessibility (Large Text mode in settings) | P3 | C1 | Open |
 | FR-011 | Import/export skills or workouts via QR code | P2 | C1 | Open |
+| FR-018 | Backgrounding & cloud sync persistence (PB & new skill loss on app switch/force close) | P1 | C2 | Open |
+| FR-019 | Drag-to-reorder insertion indicator line (replace tile highlight) | P1 | C0 | Open |
 | FR-015 | Metronome sound uneven in 16th notes | P1 | C1 | Open |
+| FR-020 | Downbeat loss & inaccurate measures on mid-measure subdivision switch | P0 | C1 | Open |
 | FR-002 | Keyboard shortcuts helper on footer | P0 | C1 | Open |
 | FR-005 | Gamified / motivational rework for Skill Queue naming & labels | P0 | C1 | Open |
 | FR-006 | Workout export / import / sharing & browser | P0 | C3 | Open |
@@ -49,6 +53,15 @@ Tracking file for feature requests, ideas, and backlog tasks.
 ## Detailed Feature Requests (Open)
 
 ### Priority: P3 (High)
+
+#### [FR-017] iOS PWA Audio Loss on App Minimize / Background Resume
+- **Priority**: P3 (High)
+- **Complexity**: C1 (Medium-Low)
+- **Status**: Open
+- **Description**: Minimizing the app on iOS in PWA mode (tested on 12.9" 2019 iPad Pro) causes audio to be lost when the app is reopened. Audio output is only restored by force quitting and restarting the app.
+- **Investigation / Action Items**:
+  - Web Audio `AudioContext` lifecycle handling on iOS Safari / WebKit PWA (`AudioContext.state` getting suspended or interrupted without auto-resuming upon `visibilitychange` / `pageshow`).
+  - Add explicit `audioContext.resume()` calls on visibility change and user touch/interaction after resume.
 
 #### [FR-009] Onboarding Experience Design for New Users
 - **Priority**: P3 (High)
@@ -84,6 +97,26 @@ Tracking file for feature requests, ideas, and backlog tasks.
 
 ### Priority: P1 (Medium-Low)
 
+#### [FR-018] Backgrounding & Cloud Sync Persistence (PB & New Skill Loss on App Switch / Force Close)
+- **Priority**: P1 (Medium-Low)
+- **Complexity**: C2 (Medium-High)
+- **Status**: Open
+- **Description**: Backgrounding and cloud sync resilience exhibits data loss edge cases:
+  - Setting a new PB in an existing skill and immediately switching to a different app results in the updated PB being lost when the app is reopened.
+  - Creating a new skill and immediately closing the app completely (e.g. via double-tap home screen swipe) results in the new skill not being present when reopened.
+  - Note: Creating a new skill and immediately pressing the home button to minimize retained the skill upon reopening, but unpersisted changes prior to app suspension/termination require tighter sync flushing and immediate local storage commits.
+- **Investigation / Action Items**:
+  - Ensure all local state modifications (skills, PB edits, playlist entries) write immediately and synchronously to `localStorage` before scheduling debounced Firestore writes.
+  - Harden `pagehide`, `beforeunload`, `visibilitychange`, and `freeze` lifecycle event handlers to flush pending syncs synchronously via `navigator.sendBeacon` or blocking local writes.
+
+#### [FR-019] Drag-to-Reorder Insertion Indicator Line
+- **Priority**: P1 (Medium-Low)
+- **Complexity**: C0 (Low)
+- **Status**: Open
+- **Description**: In Practice Order reordering mode, dragging a grip tile currently applies a full yellow outline/highlight over whatever exercise the finger is hovering above, making it difficult to discern whether the dropped item will land above or below the highlighted tile.
+- **Proposed Solution**:
+  - Replace or supplement the yellow exercise tile highlight with a precise yellow horizontal indicator line positioned on the top or bottom boundary of the target item depending on pointer position.
+
 #### [FR-015] Metronome Sound Uneven in 16th Notes
 - **Priority**: P1 (Medium-Low)
 - **Complexity**: C1 (Medium-Low)
@@ -93,6 +126,15 @@ Tracking file for feature requests, ideas, and backlog tasks.
 ---
 
 ### Priority: P0 (Low)
+
+#### [FR-020] Downbeat Loss & Inaccurate Measures on Mid-Measure Subdivision Switch
+- **Priority**: P0 (Low)
+- **Complexity**: C1 (Medium-Low)
+- **Status**: Open
+- **Description**: Mid-measure subdivision switching transitions smoothly without halting playback, but can cause the downbeat accent/position to be lost and sometimes results in measure length inaccuracies or misaligned beat counts.
+- **Investigation / Action Items**:
+  - Inspect `setSubdivision()` in `src/audio/metronomeEngine.ts`.
+  - Re-calculate subdivision ticks relative to the measure downbeat boundary (`currentMeasureTick % measureLength`) so switching subdivisions always preserves measure alignment and the true downbeat.
 
 #### [FR-002] Keyboard Shortcuts Helper Footer
 - **Priority**: P0 (Low)

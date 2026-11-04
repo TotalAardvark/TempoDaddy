@@ -214,9 +214,19 @@ export const storageManager = {
     return playlists;
   },
 
-  deletePlaylist(playlistId: string): { remainingPlaylists: Playlist[]; deletedSkillIds: string[] } {
+  deletePlaylist(playlistId: string, deleteSkillsFromAllPlaylists: boolean = false): { remainingPlaylists: Playlist[]; deletedSkillIds: string[] } {
     const playlists = this.getPlaylists();
+    const targetPlaylist = playlists.find((p) => p.id === playlistId);
     const remaining = playlists.filter((p) => p.id !== playlistId);
+
+    // If deleting skills from all playlists, also remove targetPlaylist's skill IDs from remaining playlists
+    const targetSkillIds = new Set(targetPlaylist?.skillIds || []);
+    if (deleteSkillsFromAllPlaylists) {
+      remaining.forEach((p) => {
+        p.skillIds = p.skillIds.filter((sid) => !targetSkillIds.has(sid));
+      });
+    }
+
     this.savePlaylists(remaining);
 
     // If active playlist was deleted, fallback to first remaining
@@ -224,29 +234,38 @@ export const storageManager = {
       this.setActivePlaylistId(remaining[0].id);
     }
 
-    // Clean up skills that only existed in the deleted playlist
-    const allRemainingSkillIds = new Set<string>();
-    remaining.forEach((p) => p.skillIds.forEach((sid) => allRemainingSkillIds.add(sid)));
-
     const allSkills = this.getSkills();
     const deletedSkillIds: string[] = [];
     const keptSkills: Skill[] = [];
 
-    // Filter against existing skills in the deleted playlist
-    const targetPlaylist = playlists.find((p) => p.id === playlistId);
-    const existingTargetSkillIds = new Set(
-      (targetPlaylist?.skillIds || []).filter((sid) => allSkills.some((s) => s.id === sid))
-    );
+    if (deleteSkillsFromAllPlaylists) {
+      // Delete all skills that were in the target playlist
+      allSkills.forEach((skill) => {
+        if (targetSkillIds.has(skill.id)) {
+          deletedSkillIds.push(skill.id);
+        } else {
+          keptSkills.push(skill);
+        }
+      });
+    } else {
+      // Clean up only skills that only existed in the deleted playlist
+      const allRemainingSkillIds = new Set<string>();
+      remaining.forEach((p) => p.skillIds.forEach((sid) => allRemainingSkillIds.add(sid)));
 
-    allSkills.forEach((skill) => {
-      if (allRemainingSkillIds.has(skill.id)) {
-        keptSkills.push(skill);
-      } else if (existingTargetSkillIds.has(skill.id)) {
-        deletedSkillIds.push(skill.id);
-      } else {
-        keptSkills.push(skill);
-      }
-    });
+      const existingTargetSkillIds = new Set(
+        (targetPlaylist?.skillIds || []).filter((sid) => allSkills.some((s) => s.id === sid))
+      );
+
+      allSkills.forEach((skill) => {
+        if (allRemainingSkillIds.has(skill.id)) {
+          keptSkills.push(skill);
+        } else if (existingTargetSkillIds.has(skill.id)) {
+          deletedSkillIds.push(skill.id);
+        } else {
+          keptSkills.push(skill);
+        }
+      });
+    }
 
     if (deletedSkillIds.length > 0) {
       this.saveSkills(keptSkills);
