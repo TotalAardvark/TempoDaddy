@@ -34,7 +34,13 @@ import { SkillNotesDialog } from './components/SkillNotesDialog';
 import { PersonalBestsTooltip } from './components/PersonalBestsTooltip';
 import { StreakCalendarTooltip } from './components/StreakCalendarTooltip';
 import { TempoRampModal } from './components/TempoRampModal';
+import { ImportPlaylistModal } from './components/ImportPlaylistModal';
 import { wakeLockManager } from './utils/wakeLock';
+import {
+  decodePlaylistFromHash,
+  DEFAULT_IMPORTED_BPM,
+  type SharedPlaylistBundle,
+} from './utils/playlistShare';
 
 const TIMBRE_CONFIG: Record<MetronomeTimbre, { name: string; description: string }> = {
   woodblock: { name: 'Woodblock', description: 'Warm acoustic woodblock with 2kHz transient' },
@@ -80,6 +86,7 @@ export default function App() {
   const [playlists, setPlaylists] = useState<Playlist[]>(() => storageManager.getPlaylists());
   const [activePlaylistId, setActivePlaylistId] = useState<string>(() => storageManager.getActivePlaylistId());
   const [isPlaylistsModalOpen, setIsPlaylistsModalOpen] = useState<boolean>(false);
+  const [pendingImportBundle, setPendingImportBundle] = useState<SharedPlaylistBundle | null>(null);
 
   // Active (non-hibernated) skills for the daily practice queue
   const [sessionSkillOrder, setSessionSkillOrder] = useState<string[]>([]);
@@ -992,6 +999,77 @@ export default function App() {
     triggerDebouncedCloudSync();
   };
 
+  // Detect #import=... in URL hash on initial load and hashchange
+  useEffect(() => {
+    const checkHashForImport = () => {
+      const hash = window.location.hash;
+      if (hash && hash.startsWith('#import=')) {
+        const decoded = decodePlaylistFromHash(hash);
+        if (decoded && decoded.skills.length > 0) {
+          setPendingImportBundle(decoded);
+        }
+      }
+    };
+
+    checkHashForImport();
+    window.addEventListener('hashchange', checkHashForImport);
+    return () => window.removeEventListener('hashchange', checkHashForImport);
+  }, []);
+
+  const clearImportHash = () => {
+    if (window.location.hash.startsWith('#import=')) {
+      window.history.replaceState(null, '', window.location.pathname + window.location.search);
+    }
+  };
+
+  const handleConfirmImportPlaylist = (bundle: SharedPlaylistBundle) => {
+    const currentSkills = storageManager.getSkills();
+    const nowIso = new Date().toISOString();
+    const baseTime = Date.now();
+
+    const importedSkills: Skill[] = bundle.skills.map((item, idx) => ({
+      id: `skill_${baseTime}_${idx}_${Math.random().toString(36).slice(2, 7)}`,
+      title: item.t,
+      category: item.c || 'drumming',
+      sticking: item.s,
+      personalBestBpm: DEFAULT_IMPORTED_BPM,
+      subdivision: item.d,
+      isTriplet: item.tr === 1,
+      order: currentSkills.length + idx,
+      createdAt: nowIso,
+      notes: item.n,
+    }));
+
+    const allUpdatedSkills = [...currentSkills, ...importedSkills];
+    storageManager.saveSkills(allUpdatedSkills);
+
+    const newPlaylist = storageManager.createPlaylist(bundle.name);
+    const newSkillIds = importedSkills.map((s) => s.id);
+    storageManager.updatePlaylist(newPlaylist.id, { skillIds: newSkillIds });
+    storageManager.setActivePlaylistId(newPlaylist.id);
+
+    const updatedPlaylists = storageManager.getPlaylists();
+    setSkills(allUpdatedSkills);
+    setPlaylists(updatedPlaylists);
+    setActivePlaylistId(newPlaylist.id);
+    setActiveSkillIndex(0);
+    setCompletedSkillIds(new Set());
+    setSessionSkillOrder([]);
+    setPendingImportBundle(null);
+    clearImportHash();
+
+    if (importedSkills[0]) {
+      loadSkill(importedSkills[0], false);
+    }
+
+    triggerDebouncedCloudSync();
+  };
+
+  const handleCancelImportPlaylist = () => {
+    setPendingImportBundle(null);
+    clearImportHash();
+  };
+
   // History for active skill
   const currentSkillHistory = useMemo(() => {
     return currentSkill ? storageManager.getSkillHistory(currentSkill.id) : [];
@@ -1046,6 +1124,12 @@ export default function App() {
         onDuplicatePlaylist={handleDuplicatePlaylist}
         onDeletePlaylist={handleDeletePlaylist}
       />
+      <ImportPlaylistModal
+        isOpen={Boolean(pendingImportBundle)}
+        bundle={pendingImportBundle}
+        onConfirmImport={handleConfirmImportPlaylist}
+        onCancel={handleCancelImportPlaylist}
+      />
     </>
   );
 
@@ -1067,6 +1151,7 @@ export default function App() {
             setIsRandomOrder(val);
             localStorage.setItem('tempo_coach_random_order', String(val));
           }}
+          isModalOpen={isLibraryOpen || isPlaylistsModalOpen || Boolean(pendingImportBundle)}
           onStart={handleColdStart}
           onOpenLibrary={() => {
             setInitialOpenAddSkillInLibrary(false);

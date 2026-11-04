@@ -9,9 +9,11 @@ import {
   ListMusic,
   MoreVertical,
   Clock,
+  QrCode,
 } from 'lucide-react';
 import type { Playlist, Skill } from '../types';
 import { storageManager } from '../storage/storageManager';
+import { SharePlaylistQrModal } from './SharePlaylistQrModal';
 
 interface PlaylistsModalProps {
   isOpen: boolean;
@@ -44,6 +46,7 @@ export const PlaylistsModal: React.FC<PlaylistsModalProps> = ({
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameText, setRenameText] = useState('');
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [sharePlaylist, setSharePlaylist] = useState<Playlist | null>(null);
 
   if (!isOpen) return null;
 
@@ -243,8 +246,8 @@ export const PlaylistsModal: React.FC<PlaylistsModalProps> = ({
               const isActive = pl.id === activePlaylistId;
               const isRenaming = renamingId === pl.id;
               const skillCount = pl.skillIds.filter((id) => validSkillsMap.has(id)).length;
-              // Open menu upward for the last 2 items so it doesn't get clipped by the modal boundary
-              const openUpward = sortedPlaylists.length > 2 && index >= sortedPlaylists.length - 2;
+              // Open menu upward for the last 2 items (including when there are only 1 or 2 playlists) so it never gets clipped by the modal boundary
+              const openUpward = index >= sortedPlaylists.length - 2;
 
               return (
                 <div
@@ -365,6 +368,17 @@ export const PlaylistsModal: React.FC<PlaylistsModalProps> = ({
                               <Copy className="w-3.5 h-3.5 text-neutral-400" />
                               <span>Duplicate</span>
                             </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSharePlaylist(pl);
+                                setActiveMenuId(null);
+                              }}
+                              className="w-full px-2.5 py-1.5 rounded-xl text-left text-xs text-neutral-300 hover:text-white hover:bg-neutral-800 flex items-center gap-2 transition"
+                            >
+                              <QrCode className="w-3.5 h-3.5 text-neutral-400" />
+                              <span>Share Playlist</span>
+                            </button>
                             {playlists.length > 1 && (
                               <>
                                 <div className="h-[1px] bg-neutral-800 my-1" />
@@ -432,6 +446,14 @@ export const PlaylistsModal: React.FC<PlaylistsModalProps> = ({
           </div>
         </div>
       )}
+
+      {/* Share Playlist QR Modal */}
+      <SharePlaylistQrModal
+        isOpen={Boolean(sharePlaylist)}
+        onClose={() => setSharePlaylist(null)}
+        playlist={sharePlaylist}
+        skills={skills}
+      />
     </div>
   );
 };

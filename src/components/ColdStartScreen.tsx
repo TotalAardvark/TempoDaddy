@@ -22,6 +22,7 @@ interface ColdStartScreenProps {
   onPbDisplayRangeChange: (range: PbDisplayRange) => void;
   isRandomOrder?: boolean;
   onToggleRandomOrder?: (random: boolean) => void;
+  isModalOpen?: boolean;
   onStart: () => void;
   onOpenLibrary: () => void;
   onOpenAddSkill?: () => void;
@@ -38,6 +39,7 @@ export const ColdStartScreen: React.FC<ColdStartScreenProps> = ({
   onPbDisplayRangeChange,
   isRandomOrder = false,
   onToggleRandomOrder,
+  isModalOpen = false,
   onStart,
   onOpenLibrary,
   onOpenAddSkill,
@@ -48,6 +50,7 @@ export const ColdStartScreen: React.FC<ColdStartScreenProps> = ({
   // Pressing ANY key on the keyboard starts the exercise immediately (excluding Escape & modifiers)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (isModalOpen) return;
       // If playlist is empty, don't trigger start on keypress; open add menu instead
       if (!firstSkill) {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -85,7 +88,7 @@ export const ColdStartScreen: React.FC<ColdStartScreenProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onStart, isPbTooltipOpen, isStreakTooltipOpen]);
+  }, [onStart, isPbTooltipOpen, isStreakTooltipOpen, isModalOpen]);
 
   return (
     <div
