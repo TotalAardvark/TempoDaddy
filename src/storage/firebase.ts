@@ -1,5 +1,6 @@
 import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
 import { getFirestore, type Firestore } from 'firebase/firestore';
+import { getAuth, type Auth } from 'firebase/auth';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -13,14 +14,29 @@ const firebaseConfig = {
 
 let app: FirebaseApp | null = null;
 let db: Firestore | null = null;
+let auth: Auth | null = null;
 
-export function getDb(): Firestore {
-  if (!db) {
+export function getFirebaseApp(): FirebaseApp {
+  if (!app) {
     if (!firebaseConfig.projectId) {
       throw new Error('Firebase Project ID is missing. Check your .env.local configuration.');
     }
     app = getApps().length > 0 ? getApps()[0] : initializeApp(firebaseConfig);
-    db = getFirestore(app);
+  }
+  return app;
+}
+
+export function getDb(): Firestore {
+  if (!db) {
+    db = getFirestore(getFirebaseApp());
   }
   return db;
 }
+
+export function getFirebaseAuth(): Auth {
+  if (!auth) {
+    auth = getAuth(getFirebaseApp());
+  }
+  return auth;
+}
+

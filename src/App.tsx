@@ -70,7 +70,10 @@ export default function App() {
   );
   const [isTempoRampModalOpen, setIsTempoRampModalOpen] = useState<boolean>(false);
 
-  const practicedDates = useMemo(() => storageManager.getPracticedDates(), [todaySessions, skills]);
+  const practicedDates = useMemo(() => {
+    void todaySessions;
+    return storageManager.getPracticedDates();
+  }, [todaySessions]);
 
   // App screen flow state
   const [isColdStart, setIsColdStart] = useState<boolean>(true);
@@ -88,6 +91,19 @@ export default function App() {
   const [activePlaylistId, setActivePlaylistId] = useState<string>(() => storageManager.getActivePlaylistId());
   const [isPlaylistsModalOpen, setIsPlaylistsModalOpen] = useState<boolean>(false);
   const [pendingImportBundle, setPendingImportBundle] = useState<SharedPlaylistBundle | null>(null);
+  const [isNotesDialogOpen, setIsNotesDialogOpen] = useState<boolean>(false);
+
+  // Computed helper for any modal / dialog / tooltip open
+  const isAnyModalOpen =
+    isLibraryOpen ||
+    isPlaylistsModalOpen ||
+    isConfirmModalOpen ||
+    isExitModalOpen ||
+    isTempoRampModalOpen ||
+    isPbTooltipOpen ||
+    isStreakTooltipOpen ||
+    Boolean(pendingImportBundle) ||
+    isNotesDialogOpen;
 
   // Active (non-hibernated) skills for the daily practice queue
   const [sessionSkillOrder, setSessionSkillOrder] = useState<string[]>([]);
@@ -148,7 +164,7 @@ export default function App() {
 
   // Audio Engine instance (persists across renders)
   const engineRef = useRef<MetronomeEngine | null>(null);
-  const sessionStartTimeRef = useRef<number>(Date.now());
+  const sessionStartTimeRef = useRef<number>(0);
 
   // Automatic warmup ramp state: configured from tempoRampSettings
   const rampStateRef = useRef<{
@@ -165,9 +181,13 @@ export default function App() {
     completedBeats: 0,
   });
 
+  const initialEngineParamsRef = useRef({ bpm, subdivision, isTriplet, timbre });
+
   // Initialize engine once
   useEffect(() => {
-    const engine = new MetronomeEngine(bpm, subdivision, isTriplet, timbre);
+    const { bpm: initBpm, subdivision: initSub, isTriplet: initTriplet, timbre: initTimbre } =
+      initialEngineParamsRef.current;
+    const engine = new MetronomeEngine(initBpm, initSub, initTriplet, initTimbre);
     engine.setOnQuarterBeatSchedule(() => {
       if (!rampStateRef.current.active) return;
       const ramp = rampStateRef.current;
@@ -363,9 +383,7 @@ export default function App() {
     wakeLockManager.release();
     if (currentSkill) {
       const durationSeconds = Math.max(10, Math.round((Date.now() - sessionStartTimeRef.current) / 1000));
-      const hasPreviousRuns = storageManager.getSkillHistory(currentSkill.id).length > 0;
-      const isFirstRun = !hasPreviousRuns;
-      const isPersonalBest = isFirstRun || bpm > currentSkill.personalBestBpm;
+      const isPersonalBest = bpm > currentSkill.personalBestBpm;
 
       const newSession: PracticeSessionLog = {
         id: 'session-' + Date.now(),
@@ -376,7 +394,8 @@ export default function App() {
         isPersonalBest,
       };
 
-      storageManager.addSession(newSession);
+      const { isNewPb } = storageManager.addSession(newSession);
+      newSession.isPersonalBest = isNewPb;
       triggerDebouncedCloudSync();
       const updatedSkills = storageManager.getSkills();
       setSkills(updatedSkills);
@@ -448,11 +467,13 @@ export default function App() {
     handleTogglePlay,
     handleExitClick,
   });
-  keyboardActionsRef.current = {
-    handleDoneClick,
-    handleTogglePlay,
-    handleExitClick,
-  };
+  useEffect(() => {
+    keyboardActionsRef.current = {
+      handleDoneClick,
+      handleTogglePlay,
+      handleExitClick,
+    };
+  });
 
   // Clear pending space delay timer on unmount or screen state changes
   useEffect(() => {
@@ -462,10 +483,10 @@ export default function App() {
         spaceDelayTimerRef.current = null;
       }
     };
-  }, [isColdStart, isRoutineFinished, isLibraryOpen, isConfirmModalOpen, isExitModalOpen]);
+  }, [isColdStart, isRoutineFinished, isAnyModalOpen]);
 
   useEffect(() => {
-    if (isColdStart || isRoutineFinished || isLibraryOpen || isConfirmModalOpen || isExitModalOpen) return;
+    if (isColdStart || isRoutineFinished || isAnyModalOpen) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (
@@ -521,7 +542,7 @@ export default function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isColdStart, isRoutineFinished, isLibraryOpen, isConfirmModalOpen, isExitModalOpen, handleUserBpmChange]);
+  }, [isColdStart, isRoutineFinished, isAnyModalOpen, handleUserBpmChange]);
 
   // Confirming session from modal -> save log and immediately auto-advance to next skill
   const handleConfirmSession = (finalBpm: number) => {
@@ -530,9 +551,7 @@ export default function App() {
     setCompletedSkillIds((prev) => new Set(prev).add(currentSkill.id));
 
     const durationSeconds = Math.max(10, Math.round((Date.now() - sessionStartTimeRef.current) / 1000));
-    const hasPreviousRuns = storageManager.getSkillHistory(currentSkill.id).length > 0;
-    const isFirstRun = !hasPreviousRuns;
-    const isPersonalBest = isFirstRun || finalBpm > currentSkill.personalBestBpm;
+    const isPersonalBest = finalBpm > currentSkill.personalBestBpm;
 
     const newSession: PracticeSessionLog = {
       id: 'session-' + Date.now(),
@@ -544,7 +563,8 @@ export default function App() {
     };
 
     // Store session and update PB in storage
-    storageManager.addSession(newSession);
+    const { isNewPb } = storageManager.addSession(newSession);
+    newSession.isPersonalBest = isNewPb;
     triggerDebouncedCloudSync();
 
     // Refresh skills and sessions state
@@ -591,6 +611,7 @@ export default function App() {
     if (activePlaylistId) {
       storageManager.addSkillToPlaylist(newSkill.id, activePlaylistId);
       setPlaylists(storageManager.getPlaylists());
+      setSessionSkillOrder((prev) => (prev.length > 0 ? [...prev, newSkill.id] : prev));
     }
 
     triggerDebouncedCloudSync();
@@ -643,6 +664,14 @@ export default function App() {
         storageManager.savePlaylists(storedPlaylists);
         setPlaylists(storedPlaylists);
       }
+      setSessionSkillOrder((prev) => {
+        if (prev.length === 0) return prev;
+        const idx = prev.indexOf(sourceSkillId);
+        if (idx === -1) return [...prev, newSkill.id];
+        const next = [...prev];
+        next.splice(idx + 1, 0, newSkill.id);
+        return next;
+      });
     }
 
     triggerDebouncedCloudSync();
@@ -685,13 +714,20 @@ export default function App() {
       setPlaylists(storedPlaylists);
     }
 
+    setSessionSkillOrder((prev) => prev.filter((sid) => sid !== id));
     triggerDebouncedCloudSync();
-    const clampedIndex = Math.max(0, Math.min(activeSkillIndex, remainingPlaylistActive.length - 1));
-    if (activeSkillIndex >= remainingPlaylistActive.length) {
+
+    if (currentSkill && currentSkill.id !== id) {
+      const newIndex = remainingPlaylistActive.findIndex((s) => s.id === currentSkill.id);
+      if (newIndex !== -1) {
+        setActiveSkillIndex(newIndex);
+      }
+    } else {
+      const clampedIndex = Math.max(0, Math.min(activeSkillIndex, remainingPlaylistActive.length - 1));
       setActiveSkillIndex(clampedIndex);
-    }
-    if (currentSkill?.id === id && remainingPlaylistActive[clampedIndex]) {
-      loadSkill(remainingPlaylistActive[clampedIndex], false);
+      if (remainingPlaylistActive[clampedIndex]) {
+        loadSkill(remainingPlaylistActive[clampedIndex], false);
+      }
     }
   };
 
@@ -702,14 +738,21 @@ export default function App() {
       .map((s) => updatedMap.get(s.id) || s)
       .filter((s) => !s.isHibernated);
     setSkills(updated);
+    setSessionSkillOrder((prev) => prev.filter((sid) => sid !== id));
     triggerDebouncedCloudSync();
-    const clampedIndex = Math.max(0, Math.min(activeSkillIndex, remainingPlaylistActive.length - 1));
-    if (activeSkillIndex >= remainingPlaylistActive.length) {
-      setActiveSkillIndex(clampedIndex);
-    }
+
     const targetSkill = updatedMap.get(id);
-    if (currentSkill?.id === id && targetSkill?.isHibernated && remainingPlaylistActive[clampedIndex]) {
-      loadSkill(remainingPlaylistActive[clampedIndex], false);
+    if (currentSkill && currentSkill.id !== id) {
+      const newIndex = remainingPlaylistActive.findIndex((s) => s.id === currentSkill.id);
+      if (newIndex !== -1) {
+        setActiveSkillIndex(newIndex);
+      }
+    } else if (targetSkill?.isHibernated) {
+      const clampedIndex = Math.max(0, Math.min(activeSkillIndex, remainingPlaylistActive.length - 1));
+      setActiveSkillIndex(clampedIndex);
+      if (remainingPlaylistActive[clampedIndex]) {
+        loadSkill(remainingPlaylistActive[clampedIndex], false);
+      }
     }
   };
 
@@ -779,8 +822,20 @@ export default function App() {
   const handleRestartRoutine = () => {
     setIsRoutineFinished(false);
     setCompletedSkillIds(new Set());
+    let currentActiveList = playlistSkills.filter((s) => !s.isHibernated);
+    if (isRandomOrder && currentActiveList.length > 1) {
+      const shuffled = [...currentActiveList];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      currentActiveList = shuffled;
+      setSessionSkillOrder(shuffled.map((s) => s.id));
+    } else {
+      setSessionSkillOrder([]);
+    }
     setActiveSkillIndex(0);
-    const firstActive = activeSkills[0] || skills[0];
+    const firstActive = currentActiveList[0] || playlistSkills[0] || skills[0];
     if (firstActive) {
       loadSkill(firstActive, true);
     }
@@ -819,10 +874,12 @@ export default function App() {
     currentSkillId: currentSkill?.id,
     isColdStart,
   });
-  sessionContextRef.current = {
-    currentSkillId: currentSkill?.id,
-    isColdStart,
-  };
+  useEffect(() => {
+    sessionContextRef.current = {
+      currentSkillId: currentSkill?.id,
+      isColdStart,
+    };
+  });
 
   const handleReloadAllData = (options?: { preserveSession?: boolean }) => {
     const freshSkills = storageManager.getSkills();
@@ -863,15 +920,20 @@ export default function App() {
     }
   };
 
+  const handleReloadAllDataRef = useRef(handleReloadAllData);
+  useEffect(() => {
+    handleReloadAllDataRef.current = handleReloadAllData;
+  });
+
   // Sync cloud profile on app startup, backgrounding, and resume
   useEffect(() => {
     let lastResumeCheckTime = 0;
 
     const profileId = getStoredProfileId();
     if (profileId) {
-      loadCloudProfile(profileId).then((res) => {
-        if (res.success) {
-          handleReloadAllData();
+      loadCloudProfile(profileId, { onlyIfNewer: true }).then((res) => {
+        if (res.success && !res.unchanged) {
+          handleReloadAllDataRef.current({ preserveSession: true });
         }
       }).catch((err) => {
         console.warn('Initial cloud profile fetch warning:', err);
@@ -891,7 +953,7 @@ export default function App() {
       if (currentProfileId && !hasPendingSync()) {
         loadCloudProfile(currentProfileId, { onlyIfNewer: true }).then((res) => {
           if (res.success && !res.unchanged) {
-            handleReloadAllData({ preserveSession: true });
+            handleReloadAllDataRef.current({ preserveSession: true });
           }
         }).catch((err) => {
           console.warn('Resume cloud profile refetch warning:', err);
@@ -938,7 +1000,19 @@ export default function App() {
       const orderedSkills = pl.skillIds
         .map((sid) => skillMap.get(sid))
         .filter((s): s is Skill => Boolean(s));
-      const firstSkill = orderedSkills.find((s) => !s.isHibernated) || orderedSkills[0];
+      let currentActiveList = orderedSkills.filter((s) => !s.isHibernated);
+      if (isRandomOrder && currentActiveList.length > 1) {
+        const shuffled = [...currentActiveList];
+        for (let i = shuffled.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+        currentActiveList = shuffled;
+        setSessionSkillOrder(shuffled.map((s) => s.id));
+      } else {
+        setSessionSkillOrder([]);
+      }
+      const firstSkill = currentActiveList[0] || orderedSkills[0];
       if (firstSkill) {
         loadSkill(firstSkill, false);
       }
@@ -985,8 +1059,14 @@ export default function App() {
     if (!pl) return;
     if (pl.skillIds.includes(skillId)) {
       storageManager.removeSkillFromPlaylist(skillId, playlistId);
+      if (playlistId === activePlaylistId) {
+        setSessionSkillOrder((prev) => prev.filter((sid) => sid !== skillId));
+      }
     } else {
       storageManager.addSkillToPlaylist(skillId, playlistId);
+      if (playlistId === activePlaylistId) {
+        setSessionSkillOrder((prev) => (prev.length > 0 ? [...prev, skillId] : prev));
+      }
     }
     setPlaylists(storageManager.getPlaylists());
     triggerDebouncedCloudSync();
@@ -1080,12 +1160,14 @@ export default function App() {
 
   // History for active skill
   const currentSkillHistory = useMemo(() => {
+    void todaySessions;
     return currentSkill ? storageManager.getSkillHistory(currentSkill.id) : [];
   }, [currentSkill, todaySessions]);
 
   // Top skill in active routine (always Up First)
   const topSkill = (playlistSkills.filter((s) => !s.isHibernated))[0] || null;
   const topSkillHistory = useMemo(() => {
+    void todaySessions;
     return topSkill ? storageManager.getSkillHistory(topSkill.id) : [];
   }, [topSkill, todaySessions]);
 
@@ -1366,6 +1448,7 @@ export default function App() {
           <SkillNotesDialog
             notes={currentSkill?.notes}
             onSaveNotes={handleUpdateNotes}
+            onOpenChange={setIsNotesDialogOpen}
           />
         </div>
 

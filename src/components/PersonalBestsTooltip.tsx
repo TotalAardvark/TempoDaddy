@@ -10,8 +10,6 @@ interface PersonalBestsTooltipProps {
     thisWeek: number;
     thisMonth: number;
     allTime: number;
-    sinceReset: number;
-    resetDate: string | null;
   };
   displayRange: PbDisplayRange;
   onDisplayRangeChange: (range: PbDisplayRange) => void;
@@ -31,8 +29,6 @@ export const PersonalBestsTooltip: React.FC<PersonalBestsTooltipProps> = ({
     thisWeek: 0,
     thisMonth: 0,
     allTime: 0,
-    sinceReset: 0,
-    resetDate: null,
   };
 
   useEffect(() => {

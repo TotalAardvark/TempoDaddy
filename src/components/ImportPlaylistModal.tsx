@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { X, ListMusic, Download, Pencil } from 'lucide-react';
 import { DEFAULT_IMPORTED_BPM, type SharedPlaylistBundle } from '../utils/playlistShare';
 
@@ -17,15 +17,18 @@ export const ImportPlaylistModal: React.FC<ImportPlaylistModalProps> = ({
   onConfirmImport,
   onCancel,
 }) => {
-  const [playlistName, setPlaylistName] = useState('');
+  const initialName = defaultName || bundle?.name || '';
+  const [editedName, setEditedName] = useState<string | null>(null);
   const [isEditingName, setIsEditingName] = useState(false);
+  const [prevBundle, setPrevBundle] = useState(bundle);
 
-  useEffect(() => {
-    if (bundle) {
-      setPlaylistName(defaultName || bundle.name);
-      setIsEditingName(false);
-    }
-  }, [bundle, defaultName]);
+  if (bundle !== prevBundle) {
+    setPrevBundle(bundle);
+    setEditedName(null);
+    setIsEditingName(false);
+  }
+
+  const playlistName = editedName ?? initialName;
 
   if (!isOpen || !bundle) return null;
 
@@ -55,7 +58,7 @@ export const ImportPlaylistModal: React.FC<ImportPlaylistModalProps> = ({
                   <input
                     type="text"
                     value={playlistName}
-                    onChange={(e) => setPlaylistName(e.target.value)}
+                    onChange={(e) => setEditedName(e.target.value)}
                     onBlur={() => setIsEditingName(false)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') setIsEditingName(false);

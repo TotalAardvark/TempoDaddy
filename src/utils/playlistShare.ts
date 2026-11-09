@@ -2,9 +2,9 @@ import { deflateSync, inflateSync, strToU8, strFromU8 } from 'fflate';
 import type { Playlist, Skill, Subdivision, SkillCategory } from '../types';
 
 export const DEFAULT_IMPORTED_BPM = 45;
-export const PRODUCTION_BASE_URL = 'https://totalaardvark.github.io/TempoDaddy/';
+const PRODUCTION_BASE_URL = 'https://totalaardvark.github.io/TempoDaddy/';
 
-export interface SharedSkillCompact {
+interface SharedSkillCompact {
   /** title */
   t: string;
   /** category (optional, defaults to 'drumming') */
@@ -118,7 +118,15 @@ export function decodePlaylistFromHash(hashOrPayload: string): SharedPlaylistBun
     if (!payload) return null;
 
     const compressed = urlSafeBase64ToUint8(payload);
-    const decompressed = inflateSync(compressed);
+    // Guard against oversized inputs or decompression bomb payloads
+    if (compressed.length > 65536) {
+      console.warn('Import payload exceeds maximum allowed size (64KB).');
+      return null;
+    }
+
+    const MAX_DECOMPRESSED_SIZE = 512 * 1024; // 512KB
+    const outBuffer = new Uint8Array(MAX_DECOMPRESSED_SIZE);
+    const decompressed = inflateSync(compressed, { out: outBuffer });
     const jsonStr = strFromU8(decompressed);
     const parsed = JSON.parse(jsonStr) as SharedPlaylistBundle;
 

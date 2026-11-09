@@ -107,32 +107,59 @@ export class MetronomeEngine {
     return this.bpm;
   }
 
+  private isStarting = false;
+
   public setSubdivision(subdivision: Subdivision, isTriplet: boolean) {
     if (this.subdivision === subdivision && this.isTriplet === isTriplet) {
       return;
     }
-    const oldSubdivisions = this.getSubdivisionsPerBeat();
-    const currentBeat = Math.floor(this.currentTick / oldSubdivisions);
+    const oldTicksPerBeat = this.getSubdivisionsPerBeat();
+    const currentTick = this.currentTick;
+    const oldBeat = Math.floor(currentTick / oldTicksPerBeat);
+    const oldTickInBeat = currentTick % oldTicksPerBeat;
+
     this.subdivision = subdivision;
     this.isTriplet = isTriplet;
-    const newSubdivisions = this.getSubdivisionsPerBeat();
-    this.currentTick = (currentBeat * newSubdivisions) % this.getTotalTicksPerMeasure();
+    const newTicksPerBeat = this.getSubdivisionsPerBeat();
+
+    if (oldTickInBeat === 0) {
+      this.currentTick = (oldBeat * newTicksPerBeat) % this.getTotalTicksPerMeasure();
+    } else {
+      const fractionalTick = (oldTickInBeat / oldTicksPerBeat) * newTicksPerBeat;
+      const nextTickInBeat = Math.max(1, Math.min(newTicksPerBeat - 1, Math.ceil(fractionalTick)));
+      this.currentTick = (oldBeat * newTicksPerBeat + nextTickInBeat) % this.getTotalTicksPerMeasure();
+    }
   }
 
   public async start() {
-    if (this.isRunning) return;
-    await this.unlockAudio();
-    if (!this.audioCtx) return;
+    if (this.isRunning || this.isStarting) return;
+    this.isStarting = true;
 
-    this.isRunning = true;
-    this.currentTick = 0;
-    this.nextTickTime = this.audioCtx.currentTime + 0.05;
+    try {
+      await this.unlockAudio();
+      if (!this.audioCtx || !this.isStarting) {
+        this.isStarting = false;
+        return;
+      }
 
-    this.scheduler();
-    this.timerId = window.setInterval(() => this.scheduler(), this.lookaheadMs);
+      this.isRunning = true;
+      this.currentTick = 0;
+      this.nextTickTime = this.audioCtx.currentTime + 0.05;
+
+      if (this.timerId !== null) {
+        clearInterval(this.timerId);
+        this.timerId = null;
+      }
+
+      this.scheduler();
+      this.timerId = window.setInterval(() => this.scheduler(), this.lookaheadMs);
+    } finally {
+      this.isStarting = false;
+    }
   }
 
   public stop() {
+    this.isStarting = false;
     this.isRunning = false;
     if (this.timerId !== null) {
       clearInterval(this.timerId);

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useMemo } from 'react';
+import React, { useEffect, useRef, useMemo, useState } from 'react';
 import { Flame, X } from 'lucide-react';
 
 interface StreakCalendarTooltipProps {
@@ -50,11 +50,15 @@ export const StreakCalendarTooltip: React.FC<StreakCalendarTooltipProps> = ({
     };
   }, [isOpen, onClose, triggerRef]);
 
+  const [today] = useState(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  });
+
   // Compute 4 weeks of days (3 weeks into past + current week = 28 days)
   const daysGrid = useMemo(() => {
     const set = new Set(practicedDates);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
 
     // Sunday as start of week (0: Sun, ..., 6: Sat)
     const dayOfWeek = today.getDay();
@@ -91,7 +95,7 @@ export const StreakCalendarTooltip: React.FC<StreakCalendarTooltipProps> = ({
     }
 
     return grid;
-  }, [practicedDates]);
+  }, [practicedDates, today]);
 
   if (!isOpen) return null;
 

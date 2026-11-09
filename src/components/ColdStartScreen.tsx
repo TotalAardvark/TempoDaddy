@@ -15,8 +15,6 @@ interface ColdStartScreenProps {
     thisWeek: number;
     thisMonth: number;
     allTime: number;
-    sinceReset: number;
-    resetDate: string | null;
   };
   pbDisplayRange: PbDisplayRange;
   onPbDisplayRangeChange: (range: PbDisplayRange) => void;
@@ -46,11 +44,12 @@ export const ColdStartScreen: React.FC<ColdStartScreenProps> = ({
 }) => {
   const [isPbTooltipOpen, setIsPbTooltipOpen] = useState(false);
   const [isStreakTooltipOpen, setIsStreakTooltipOpen] = useState(false);
+  const [isProgressionModalOpen, setIsProgressionModalOpen] = useState(false);
 
   // Pressing ANY key on the keyboard starts the exercise immediately (excluding Escape & modifiers)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (isModalOpen) return;
+      if (isModalOpen || isProgressionModalOpen) return;
       // If playlist is empty, don't trigger start on keypress; open add menu instead
       if (!firstSkill) {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -74,8 +73,13 @@ export const ColdStartScreen: React.FC<ColdStartScreenProps> = ({
         }
         return;
       }
-      // Ignore bare modifier keys so users don't accidentally trigger when switching windows
-      if (['Shift', 'Control', 'Alt', 'Meta', 'CapsLock'].includes(e.key)) {
+      // Ignore bare modifier, navigation, volume, and function keys
+      if (
+        ['Shift', 'Control', 'Alt', 'Meta', 'CapsLock', 'Tab', 'ContextMenu'].includes(e.key) ||
+        /^F\d{1,2}$/.test(e.key) ||
+        e.key.startsWith('AudioVolume') ||
+        e.key === 'VolumeMute'
+      ) {
         return;
       }
       // Allow browser shortcuts like Cmd+R or Ctrl+R (refresh), Cmd+W, etc. to behave natively
@@ -88,11 +92,12 @@ export const ColdStartScreen: React.FC<ColdStartScreenProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onStart, isPbTooltipOpen, isStreakTooltipOpen, isModalOpen]);
+  }, [onStart, isPbTooltipOpen, isStreakTooltipOpen, isModalOpen, isProgressionModalOpen, firstSkill, onOpenAddSkill, onOpenLibrary]);
 
   return (
     <div
       onClick={() => {
+        if (isProgressionModalOpen) return;
         if (firstSkill) {
           onStart();
         } else if (onOpenAddSkill) {
@@ -223,6 +228,7 @@ export const ColdStartScreen: React.FC<ColdStartScreenProps> = ({
                   width={110}
                   height={34}
                   showLabels={false}
+                  onModalOpenChange={setIsProgressionModalOpen}
                 />
               </div>
             </div>
@@ -237,7 +243,7 @@ export const ColdStartScreen: React.FC<ColdStartScreenProps> = ({
                 onOpenLibrary();
               }
             }}
-            className="w-full bg-neutral-900/90 hover:bg-neutral-850 active:bg-neutral-800 border border-dashed border-amber-500/50 hover:border-amber-400 rounded-2xl p-4 text-left shadow-lg backdrop-blur cursor-pointer transition group"
+            className="w-full bg-neutral-900/90 hover:bg-neutral-800 active:bg-neutral-800 border border-dashed border-amber-500/50 hover:border-amber-400 rounded-2xl p-4 text-left shadow-lg backdrop-blur cursor-pointer transition group"
           >
             <div className="text-[11px] font-mono uppercase tracking-wider text-amber-400/80 mb-1">
               UP FIRST

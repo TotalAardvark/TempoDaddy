@@ -52,6 +52,12 @@ export interface PresetSkill {
   description?: string;
 }
 
+export interface PbStats {
+  thisWeek: number;
+  thisMonth: number;
+  allTime: number;
+}
+
 export interface TempoRampSettings {
   startPercent: number; // e.g. 80
   targetPercent: number; // e.g. 90

@@ -16,8 +16,6 @@ interface RoutineCompleteScreenProps {
     thisWeek: number;
     thisMonth: number;
     allTime: number;
-    sinceReset: number;
-    resetDate: string | null;
   };
   pbDisplayRange?: PbDisplayRange;
   onPbDisplayRangeChange?: (range: PbDisplayRange) => void;
@@ -37,6 +35,7 @@ export const RoutineCompleteScreen: React.FC<RoutineCompleteScreenProps> = ({
   pbStats,
   pbDisplayRange = 'allTime',
   onPbDisplayRangeChange,
+  onRestartRoutine,
   onReturnToStart,
   onReturnToTitle,
   onOpenLibrary,
@@ -68,11 +67,8 @@ export const RoutineCompleteScreen: React.FC<RoutineCompleteScreenProps> = ({
       const history = historyBySkillId.get(skill.id) ?? [];
       const mostRecent = [...todaySessions].reverse().find((s) => s.skillId === skill.id) ||
         (history.length > 0 ? history[history.length - 1] : null);
-      if (mostRecent) {
-        const latestBpm = mostRecent.bpm;
-        if (mostRecent.isPersonalBest || latestBpm >= skill.personalBestBpm) {
-          count++;
-        }
+      if (mostRecent && mostRecent.isPersonalBest) {
+        count++;
       }
     });
     return count;
@@ -83,12 +79,13 @@ export const RoutineCompleteScreen: React.FC<RoutineCompleteScreenProps> = ({
   const prevTotalPbCount = Math.max(0, totalPbCount - sessionPbCount);
 
   // Script-based animated counter from previous total to current total
-  const [animatedPbCount, setAnimatedPbCount] = useState<number>(prevTotalPbCount);
+  const [animatedPbCount, setAnimatedPbCount] = useState<number>(
+    sessionPbCount <= 0 ? totalPbCount : prevTotalPbCount
+  );
   const animFrameRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (sessionPbCount <= 0) {
-      setAnimatedPbCount(totalPbCount);
       return;
     }
 
@@ -117,6 +114,8 @@ export const RoutineCompleteScreen: React.FC<RoutineCompleteScreenProps> = ({
       }
     };
   }, [prevTotalPbCount, totalPbCount, sessionPbCount]);
+
+  const displayPbCount = sessionPbCount <= 0 ? totalPbCount : animatedPbCount;
 
   useEffect(() => {
     confetti({
@@ -158,9 +157,9 @@ export const RoutineCompleteScreen: React.FC<RoutineCompleteScreenProps> = ({
             title="Personal Bests stats (click to expand)"
           >
             <Trophy className="w-3.5 h-3.5 fill-cyan-400 text-cyan-400 shrink-0" strokeWidth={2.25} />
-            <span className="font-mono text-sm tracking-tight">{animatedPbCount}</span>
+            <span className="font-mono text-sm tracking-tight">{displayPbCount}</span>
             {sessionPbCount > 0 && (
-              <span className="text-[11px] font-mono font-black text-cyan-200 bg-cyan-500/20 px-1.5 py-0.2 rounded-full border border-cyan-400/40 animate-pulse">
+              <span className="text-[11px] font-mono font-black text-cyan-200 bg-cyan-500/20 px-1.5 py-0.5 rounded-full border border-cyan-400/40 animate-pulse">
                 +{sessionPbCount}
               </span>
             )}
@@ -323,7 +322,6 @@ export const RoutineCompleteScreen: React.FC<RoutineCompleteScreenProps> = ({
                     <TealProgressGraph
                       history={history}
                       personalBestBpm={skill.personalBestBpm}
-                      currentBpm={latestBpm}
                       skillTitle={skill.title}
                       sticking={skill.sticking}
                       width={120}
@@ -407,10 +405,25 @@ export const RoutineCompleteScreen: React.FC<RoutineCompleteScreenProps> = ({
 
         {/* Action Buttons */}
         <div className="w-full flex flex-col gap-3">
+          {onRestartRoutine && (
+            <button
+              type="button"
+              onClick={onRestartRoutine}
+              className="w-full py-3.5 rounded-2xl bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-neutral-950 font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition cursor-pointer"
+            >
+              <RotateCcw className="w-4 h-4" />
+              <span>Restart Routine</span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={onReturnToStart || onReturnToTitle}
-            className="w-full py-3.5 rounded-2xl bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-neutral-950 font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition cursor-pointer"
+            className={`w-full py-3.5 rounded-2xl ${
+              onRestartRoutine
+                ? 'bg-neutral-800 hover:bg-neutral-700 active:bg-neutral-600 border border-neutral-700 text-white'
+                : 'bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-neutral-950'
+            } font-bold text-sm flex items-center justify-center gap-2 shadow-lg transition cursor-pointer`}
           >
             <RotateCcw className="w-4 h-4" />
             <span>Return to Start</span>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   X,
   Plus,
@@ -49,10 +49,30 @@ export const PlaylistsModal: React.FC<PlaylistsModalProps> = ({
   const [confirmDeleteAllSkills, setConfirmDeleteAllSkills] = useState(false);
   const [sharePlaylist, setSharePlaylist] = useState<Playlist | null>(null);
 
+  const [startOfToday] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  });
+
+  // Modal stacking protection: Capture ESC key and stop propagation to prevent underlying modals (e.g. SkillLibraryModal) from closing
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown, { capture: true });
+    return () => window.removeEventListener('keydown', handleKeyDown, { capture: true });
+  }, [isOpen, onClose]);
+
+  const allSessions = useMemo(() => (isOpen ? storageManager.getSessions() : []), [isOpen]);
+
   if (!isOpen) return null;
 
   const validSkillsMap = new Map(skills.map((s) => [s.id, s]));
-  const allSessions = storageManager.getSessions();
 
   // Helper to get the most recent practice session timestamp for a playlist
   const getLatestSessionTime = (pl: Playlist): number => {
@@ -136,9 +156,6 @@ export const PlaylistsModal: React.FC<PlaylistsModalProps> = ({
     }
 
     const latestDate = new Date(latestTimestamp);
-    const now = new Date();
-
-    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
     const startOfSessionDay = new Date(latestDate.getFullYear(), latestDate.getMonth(), latestDate.getDate()).getTime();
     const diffDays = Math.round((startOfToday - startOfSessionDay) / (1000 * 60 * 60 * 24));
 

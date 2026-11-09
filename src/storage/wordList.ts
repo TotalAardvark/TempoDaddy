@@ -1,5 +1,5 @@
 // Curated dictionary of friendly, easy-to-spell adjectives and nouns
-export const ADJECTIVES = [
+const ADJECTIVES = [
   'amber', 'ancient', 'atomic', 'azure', 'bright', 'brave', 'brisk', 'breezy',
   'calm', 'clever', 'copper', 'coral', 'cosmic', 'crimson', 'crisp', 'crystal',
   'dapper', 'daring', 'dawn', 'deft', 'delta', 'dune', 'eager', 'early',
@@ -19,7 +19,7 @@ export const ADJECTIVES = [
   'wise', 'witty', 'zen', 'zephyr'
 ];
 
-export const NOUNS = [
+const NOUNS = [
   'badger', 'beacon', 'bear', 'beat', 'beaver', 'bison', 'bongo', 'breeze',
   'cadence', 'canyon', 'cedar', 'cheetah', 'cliff', 'cloud', 'clover', 'comet',
   'compass', 'condor', 'coral', 'cosmos', 'coyote', 'crane', 'crater', 'cymbal',
@@ -33,7 +33,7 @@ export const NOUNS = [
   'pioneer', 'planet', 'plateau', 'polar', 'pulse', 'pyramid', 'quiver', 'raven',
   'reef', 'rhino', 'rhythm', 'ridge', 'river', 'robin', 'rocket', 'rudiment',
   'sail', 'sea', 'sequoia', 'shadow', 'snare', 'solstice', 'sound', 'spark',
-  'stride', 'summit', 'swift', 'tempo', 'throne', 'tiger', 'timber', 'traill',
+  'stride', 'summit', 'swift', 'tempo', 'throne', 'tiger', 'timber', 'trail',
   'tsunami', 'tundra', 'valley', 'vessel', 'voyager', 'wave', 'wind', 'wolf',
   'woodblock', 'zenith'
 ];

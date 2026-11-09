@@ -26,18 +26,25 @@ export const ConfirmSessionModal: React.FC<ConfirmSessionModalProps> = ({
   onCancel,
 }) => {
   const [loggedBpm, setLoggedBpm] = useState(initialBpm);
+  const [prevOpen, setPrevOpen] = useState(isOpen);
+  const [prevInitialBpm, setPrevInitialBpm] = useState(initialBpm);
   const lastModalBpmKeyRef = useRef<{ key: string; time: number }>({ key: '', time: 0 });
 
-  useEffect(() => {
+  if (isOpen !== prevOpen || initialBpm !== prevInitialBpm) {
+    setPrevOpen(isOpen);
+    setPrevInitialBpm(initialBpm);
     if (isOpen) {
       setLoggedBpm(initialBpm);
-      if (isFirstRun || initialBpm > personalBestBpm) {
-        confetti({
-          particleCount: 70,
-          spread: 60,
-          origin: { y: 0.6 },
-        });
-      }
+    }
+  }
+
+  useEffect(() => {
+    if (isOpen && (isFirstRun || initialBpm > personalBestBpm)) {
+      confetti({
+        particleCount: 70,
+        spread: 60,
+        origin: { y: 0.6 },
+      });
     }
   }, [isOpen, initialBpm, personalBestBpm, isFirstRun]);
 

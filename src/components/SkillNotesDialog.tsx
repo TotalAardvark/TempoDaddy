@@ -4,11 +4,13 @@ import { FileText, X, Check } from 'lucide-react';
 interface SkillNotesDialogProps {
   notes?: string;
   onSaveNotes: (notes: string) => void;
+  onOpenChange?: (isOpen: boolean) => void;
 }
 
 export const SkillNotesDialog: React.FC<SkillNotesDialogProps> = ({
   notes = '',
   onSaveNotes,
+  onOpenChange,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [draft, setDraft] = useState(notes);
@@ -16,11 +18,17 @@ export const SkillNotesDialog: React.FC<SkillNotesDialogProps> = ({
   const handleOpen = () => {
     setDraft(notes || '');
     setIsOpen(true);
+    onOpenChange?.(true);
+  };
+
+  const handleClose = () => {
+    setIsOpen(false);
+    onOpenChange?.(false);
   };
 
   const handleSave = () => {
     onSaveNotes(draft);
-    setIsOpen(false);
+    handleClose();
   };
 
   return (
@@ -57,7 +65,7 @@ export const SkillNotesDialog: React.FC<SkillNotesDialogProps> = ({
       {isOpen && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-150"
-          onClick={() => setIsOpen(false)}
+          onClick={handleClose}
         >
           <div
             className="w-[90%] max-w-[400px] bg-neutral-900 border border-neutral-800 rounded-2xl p-5 shadow-2xl flex flex-col gap-4 animate-in zoom-in-95 duration-150"
@@ -72,7 +80,7 @@ export const SkillNotesDialog: React.FC<SkillNotesDialogProps> = ({
               </div>
               <button
                 type="button"
-                onClick={() => setIsOpen(false)}
+                onClick={handleClose}
                 className="p-1 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 transition"
               >
                 <X className="w-4 h-4" />
@@ -88,7 +96,7 @@ export const SkillNotesDialog: React.FC<SkillNotesDialogProps> = ({
                   handleSave();
                 } else if (e.key === 'Escape') {
                   e.preventDefault();
-                  setIsOpen(false);
+                  handleClose();
                 }
               }}
               placeholder="E.g., Keep wrists relaxed on accents, watch left hand rebound, smooth transition on bar 4..."
@@ -104,7 +112,7 @@ export const SkillNotesDialog: React.FC<SkillNotesDialogProps> = ({
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => setIsOpen(false)}
+                  onClick={handleClose}
                   className="px-3 py-1.5 rounded-lg text-xs font-semibold text-neutral-400 hover:text-white hover:bg-neutral-800 transition"
                 >
                   Cancel

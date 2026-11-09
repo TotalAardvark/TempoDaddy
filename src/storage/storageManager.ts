@@ -1,4 +1,4 @@
-import type { Skill, Playlist, PracticeSessionLog, TempoRampSettings, MetronomeTimbre, PbDisplayRange } from '../types';
+import type { Skill, Playlist, PracticeSessionLog, TempoRampSettings, MetronomeTimbre, PbDisplayRange, PbStats, Subdivision, SkillCategory } from '../types';
 import { INITIAL_SKILLS } from '../data/initialSkills';
 
 const SKILLS_KEY = 'tempo_skills_v1';
@@ -8,8 +8,10 @@ const SESSIONS_KEY = 'tempo_sessions_v1';
 const TEMPO_RAMP_KEY = 'tempo_coach_ramp_settings_v1';
 const TIMBRE_KEY = 'tempo_coach_metronome_timbre_v1';
 const PB_DISPLAY_RANGE_KEY = 'tempo_coach_pb_display_range_v1';
-const DEFAULT_TIMBRE: MetronomeTimbre = 'woodblock';
+const LOCAL_MODIFIED_KEY = 'tempo_coach_local_modified_at';
+const HAS_UNSYNCED_KEY = 'tempo_coach_has_unsynced_changes';
 
+const DEFAULT_TIMBRE: MetronomeTimbre = 'woodblock';
 export const DEFAULT_PLAYLIST_NAME = "Let's Go!";
 
 export const DEFAULT_RAMP_SETTINGS: TempoRampSettings = {
@@ -36,7 +38,144 @@ export function toLocalDateKey(dateInput: Date | string = new Date()): string {
   return `${year}-${month}-${day}`;
 }
 
+export function sanitizeSkill(raw: unknown, defaultOrder = 0): Skill | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const s = raw as Record<string, unknown>;
+  const id = typeof s.id === 'string' && s.id.trim() ? s.id.trim() : '';
+  const title = typeof s.title === 'string' && s.title.trim() ? s.title.trim() : '';
+  if (!id || !title) return null;
+
+  const rawBpm = Number(s.personalBestBpm);
+  const personalBestBpm = Number.isFinite(rawBpm) && rawBpm > 0 ? Math.round(Math.max(20, Math.min(500, rawBpm))) : 80;
+
+  const validSubdivisions: Subdivision[] = ['1/4', '1/8', '1/16'];
+  const subdivision = validSubdivisions.includes(s.subdivision as Subdivision) ? (s.subdivision as Subdivision) : '1/16';
+
+  const validCategories: SkillCategory[] = ['drumming', 'piano', 'guitar', 'general'];
+  const category: SkillCategory = validCategories.includes(s.category as SkillCategory) ? (s.category as SkillCategory) : 'drumming';
+
+  const order = typeof s.order === 'number' && Number.isFinite(s.order) ? s.order : defaultOrder;
+
+  return {
+    id,
+    title,
+    category,
+    sticking: typeof s.sticking === 'string' ? s.sticking.trim() : undefined,
+    notes: typeof s.notes === 'string' ? s.notes : undefined,
+    personalBestBpm,
+    subdivision,
+    isTriplet: Boolean(s.isTriplet),
+    isHibernated: Boolean(s.isHibernated),
+    order,
+    createdAt: typeof s.createdAt === 'string' ? s.createdAt : new Date().toISOString(),
+  };
+}
+
+export function sanitizePlaylist(raw: unknown): Playlist | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const p = raw as Record<string, unknown>;
+  const id = typeof p.id === 'string' && p.id.trim() ? p.id.trim() : '';
+  const name = typeof p.name === 'string' && p.name.trim() ? p.name.trim() : '';
+  if (!id || !name) return null;
+
+  const rawSkillIds = Array.isArray(p.skillIds) ? p.skillIds : [];
+  const skillIds = rawSkillIds.filter((sid): sid is string => typeof sid === 'string' && sid.trim().length > 0);
+
+  return {
+    id,
+    name,
+    skillIds,
+    createdAt: typeof p.createdAt === 'string' ? p.createdAt : new Date().toISOString(),
+    lastPlayedAt: typeof p.lastPlayedAt === 'string' ? p.lastPlayedAt : new Date().toISOString(),
+  };
+}
+
+export function sanitizeSession(raw: unknown): PracticeSessionLog | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const s = raw as Record<string, unknown>;
+  const id = typeof s.id === 'string' && s.id.trim() ? s.id.trim() : '';
+  const skillId = typeof s.skillId === 'string' && s.skillId.trim() ? s.skillId.trim() : '';
+  if (!id || !skillId) return null;
+
+  const rawBpm = Number(s.bpm);
+  if (!Number.isFinite(rawBpm) || rawBpm <= 0) return null;
+  const bpm = Math.round(Math.max(20, Math.min(500, rawBpm)));
+
+  const rawDuration = Number(s.durationSeconds);
+  const durationSeconds = Number.isFinite(rawDuration) && rawDuration >= 0 ? Math.round(rawDuration) : 0;
+
+  return {
+    id,
+    skillId,
+    date: typeof s.date === 'string' ? s.date : new Date().toISOString(),
+    bpm,
+    durationSeconds,
+    isPersonalBest: Boolean(s.isPersonalBest),
+  };
+}
+
+export function sanitizeTempoRampSettings(raw: unknown): TempoRampSettings {
+  if (typeof raw !== 'object' || raw === null) return DEFAULT_RAMP_SETTINGS;
+  const r = raw as Record<string, unknown>;
+
+  const startPercent = Number.isFinite(Number(r.startPercent)) ? Math.max(10, Math.min(200, Number(r.startPercent))) : DEFAULT_RAMP_SETTINGS.startPercent;
+  const targetPercent = Number.isFinite(Number(r.targetPercent)) ? Math.max(10, Math.min(200, Number(r.targetPercent))) : DEFAULT_RAMP_SETTINGS.targetPercent;
+  const measures = Number.isFinite(Number(r.measures)) ? Math.max(1, Math.min(128, Math.round(Number(r.measures)))) : DEFAULT_RAMP_SETTINGS.measures;
+  const enabled = typeof r.enabled === 'boolean' ? r.enabled : DEFAULT_RAMP_SETTINGS.enabled;
+
+  return { startPercent, targetPercent, measures, enabled };
+}
+
+export function sanitizeTimbre(raw: unknown): MetronomeTimbre {
+  if (raw === 'woodblock' || raw === 'beep' || raw === 'loud') {
+    return raw;
+  }
+  if (raw === 'rimshot') {
+    return 'loud';
+  }
+  return DEFAULT_TIMBRE;
+}
+
 export const storageManager = {
+  getLocalModifiedAt(): string {
+    try {
+      return localStorage.getItem(LOCAL_MODIFIED_KEY) || '1970-01-01T00:00:00.000Z';
+    } catch {
+      return '1970-01-01T00:00:00.000Z';
+    }
+  },
+
+  touchLocalModifiedAt(timestamp?: string): string {
+    const ts = timestamp || new Date().toISOString();
+    try {
+      localStorage.setItem(LOCAL_MODIFIED_KEY, ts);
+    } catch (e) {
+      console.error('Failed to set local modified at', e);
+    }
+    return ts;
+  },
+
+  getHasUnsyncedChanges(): boolean {
+    try {
+      return localStorage.getItem(HAS_UNSYNCED_KEY) === 'true';
+    } catch {
+      return false;
+    }
+  },
+
+  setHasUnsyncedChanges(val: boolean): void {
+    try {
+      localStorage.setItem(HAS_UNSYNCED_KEY, val ? 'true' : 'false');
+    } catch (e) {
+      console.error('Failed to set has unsynced changes', e);
+    }
+  },
+
+  markLocalChange() {
+    this.touchLocalModifiedAt();
+    this.setHasUnsyncedChanges(true);
+  },
+
   getSkills(): Skill[] {
     try {
       const stored = localStorage.getItem(SKILLS_KEY);
@@ -76,6 +215,7 @@ export const storageManager = {
   saveSkills(skills: Skill[]) {
     try {
       localStorage.setItem(SKILLS_KEY, JSON.stringify(skills));
+      this.markLocalChange();
     } catch (e) {
       console.error('Error saving skills to localStorage', e);
     }
@@ -150,6 +290,7 @@ export const storageManager = {
   savePlaylists(playlists: Playlist[]) {
     try {
       localStorage.setItem(PLAYLISTS_KEY, JSON.stringify(playlists));
+      this.markLocalChange();
     } catch (e) {
       console.error('Error saving playlists to localStorage', e);
     }
@@ -200,78 +341,84 @@ export const storageManager = {
     };
     playlists.push(newPlaylist);
     this.savePlaylists(playlists);
-    this.setActivePlaylistId(newPlaylist.id);
     return newPlaylist;
   },
 
-  updatePlaylist(id: string, updates: Partial<Omit<Playlist, 'id'>>): Playlist[] {
+  updatePlaylist(id: string, updates: Partial<Pick<Playlist, 'name' | 'skillIds'>>): Playlist[] {
     const playlists = this.getPlaylists();
     const idx = playlists.findIndex((p) => p.id === id);
     if (idx !== -1) {
-      playlists[idx] = { ...playlists[idx], ...updates };
+      if (updates.name !== undefined) {
+        playlists[idx].name = updates.name.trim() || playlists[idx].name;
+      }
+      if (updates.skillIds !== undefined) {
+        playlists[idx].skillIds = [...updates.skillIds];
+      }
       this.savePlaylists(playlists);
     }
     return playlists;
   },
 
-  deletePlaylist(playlistId: string, deleteSkillsFromAllPlaylists: boolean = false): { remainingPlaylists: Playlist[]; deletedSkillIds: string[] } {
-    const playlists = this.getPlaylists();
-    const targetPlaylist = playlists.find((p) => p.id === playlistId);
-    const remaining = playlists.filter((p) => p.id !== playlistId);
-
-    // If deleting skills from all playlists, also remove targetPlaylist's skill IDs from remaining playlists
-    const targetSkillIds = new Set(targetPlaylist?.skillIds || []);
-    if (deleteSkillsFromAllPlaylists) {
-      remaining.forEach((p) => {
-        p.skillIds = p.skillIds.filter((sid) => !targetSkillIds.has(sid));
-      });
-    }
-
-    this.savePlaylists(remaining);
-
-    // If active playlist was deleted, fallback to first remaining
-    if (this.getActivePlaylistId() === playlistId && remaining.length > 0) {
-      this.setActivePlaylistId(remaining[0].id);
-    }
-
-    const allSkills = this.getSkills();
+  deletePlaylist(
+    id: string,
+    deleteSkillsFromAllPlaylists: boolean = false
+  ): { remainingPlaylists: Playlist[]; deletedSkillIds: string[] } {
+    let playlists = this.getPlaylists();
+    const target = playlists.find((p) => p.id === id);
     const deletedSkillIds: string[] = [];
-    const keptSkills: Skill[] = [];
+
+    if (!target) {
+      return { remainingPlaylists: playlists, deletedSkillIds: [] };
+    }
 
     if (deleteSkillsFromAllPlaylists) {
-      // Delete all skills that were in the target playlist
-      allSkills.forEach((skill) => {
-        if (targetSkillIds.has(skill.id)) {
-          deletedSkillIds.push(skill.id);
-        } else {
-          keptSkills.push(skill);
-        }
-      });
+      deletedSkillIds.push(...target.skillIds);
+      // Remove these skills completely from storage
+      const skills = this.getSkills().filter((s) => !deletedSkillIds.includes(s.id));
+      this.saveSkills(skills);
+
+      // Clean skill references from remaining playlists
+      playlists = playlists
+        .filter((p) => p.id !== id)
+        .map((p) => ({
+          ...p,
+          skillIds: p.skillIds.filter((sid) => !deletedSkillIds.includes(sid)),
+        }));
     } else {
-      // Clean up only skills that only existed in the deleted playlist
-      const allRemainingSkillIds = new Set<string>();
-      remaining.forEach((p) => p.skillIds.forEach((sid) => allRemainingSkillIds.add(sid)));
-
-      const existingTargetSkillIds = new Set(
-        (targetPlaylist?.skillIds || []).filter((sid) => allSkills.some((s) => s.id === sid))
-      );
-
-      allSkills.forEach((skill) => {
-        if (allRemainingSkillIds.has(skill.id)) {
-          keptSkills.push(skill);
-        } else if (existingTargetSkillIds.has(skill.id)) {
-          deletedSkillIds.push(skill.id);
-        } else {
-          keptSkills.push(skill);
-        }
-      });
+      // Just delete the playlist, orphan skills will be rescued into another playlist
+      playlists = playlists.filter((p) => p.id !== id);
+      if (playlists.length > 0 && target.skillIds.length > 0) {
+        const fallback = playlists[0];
+        target.skillIds.forEach((sid) => {
+          if (!fallback.skillIds.includes(sid)) {
+            fallback.skillIds.push(sid);
+          }
+        });
+      }
     }
 
-    if (deletedSkillIds.length > 0) {
-      this.saveSkills(keptSkills);
+    // Never leave playlists empty: ensure at least one playlist exists
+    if (playlists.length === 0) {
+      const skills = this.getSkills();
+      const defaultPlaylist: Playlist = {
+        id: 'default_lets_go',
+        name: DEFAULT_PLAYLIST_NAME,
+        skillIds: skills.map((s) => s.id),
+        createdAt: new Date().toISOString(),
+        lastPlayedAt: new Date().toISOString(),
+      };
+      playlists = [defaultPlaylist];
     }
 
-    return { remainingPlaylists: remaining, deletedSkillIds };
+    this.savePlaylists(playlists);
+
+    // If active playlist was deleted, point active ID to the first remaining playlist
+    const activeId = this.getActivePlaylistId();
+    if (activeId === id) {
+      this.setActivePlaylistId(playlists[0].id, false);
+    }
+
+    return { remainingPlaylists: playlists, deletedSkillIds };
   },
 
   addSkillToPlaylist(skillId: string, playlistId: string) {
@@ -292,14 +439,10 @@ export const storageManager = {
     }
   },
 
-  getPlaylistsForSkill(skillId: string): Playlist[] {
-    const playlists = this.getPlaylists();
-    return playlists.filter((p) => p.skillIds.includes(skillId));
-  },
-
   saveSessions(sessions: PracticeSessionLog[]) {
     try {
       localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions));
+      this.markLocalChange();
     } catch (e) {
       console.error('Error saving sessions to localStorage', e);
     }
@@ -318,22 +461,26 @@ export const storageManager = {
   addSession(session: PracticeSessionLog): { isNewPb: boolean } {
     try {
       const sessions = this.getSessions();
-      sessions.push(session);
-      localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions));
-
-      // Check and update skill Personal Best
       const skills = this.getSkills();
       const skillIndex = skills.findIndex((s) => s.id === session.skillId);
       let isNewPb = false;
 
       if (skillIndex !== -1) {
-        if (session.isPersonalBest || session.bpm > skills[skillIndex].personalBestBpm) {
+        const currentPb = skills[skillIndex].personalBestBpm ?? 0;
+        // Equal PB score rule: hitting exact PB does not count as a new PB
+        // First-run baseline rule: warmup tempo does not lower or overwrite existing PB
+        if (session.bpm > currentPb) {
           skills[skillIndex].personalBestBpm = session.bpm;
           isNewPb = true;
+          session.isPersonalBest = true;
           this.saveSkills(skills);
+        } else {
+          session.isPersonalBest = false;
         }
       }
 
+      sessions.push(session);
+      this.saveSessions(sessions);
       return { isNewPb };
     } catch (e) {
       console.error('Error adding session', e);
@@ -347,103 +494,62 @@ export const storageManager = {
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   },
 
-  getMostRecentSession(skillId: string): PracticeSessionLog | null {
-    const history = this.getSkillHistory(skillId);
-    return history.length > 0 ? history[history.length - 1] : null;
-  },
-
-  getTodayPracticedSkillIds(): string[] {
-    const today = toLocalDateKey();
-    const sessions = this.getSessions();
-    const practicedToday = new Set<string>();
-
-    sessions.forEach((s) => {
-      if (toLocalDateKey(s.date) === today) {
-        practicedToday.add(s.skillId);
-      }
-    });
-
-    return Array.from(practicedToday);
-  },
-
   calculateStreak(): number {
     const sessions = this.getSessions();
     if (sessions.length === 0) return 0;
 
-    const uniqueDates = Array.from(
-      new Set(sessions.map((s) => toLocalDateKey(s.date)))
-    ).sort().reverse();
+    const practicedDays = new Set<string>();
+    sessions.forEach((s) => {
+      practicedDays.add(toLocalDateKey(s.date));
+    });
 
-    const todayDate = new Date();
-    todayDate.setHours(0, 0, 0, 0);
-    const yesterdayDate = new Date(todayDate);
-    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+    const now = new Date();
+    const todayStr = toLocalDateKey(now);
 
-    const today = toLocalDateKey(todayDate);
-    const yesterday = toLocalDateKey(yesterdayDate);
-
-    // If neither today nor yesterday has practice, streak is 0
-    if (!uniqueDates.includes(today) && !uniqueDates.includes(yesterday)) {
-      return 0;
-    }
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = toLocalDateKey(yesterday);
 
     let streak = 0;
-    const checkDate = new Date(uniqueDates.includes(today) ? todayDate : yesterdayDate);
+    let checkDate = new Date(now);
 
-    while (true) {
-      const dateStr = toLocalDateKey(checkDate);
-      if (uniqueDates.includes(dateStr)) {
+    if (practicedDays.has(todayStr)) {
+      streak = 1;
+      checkDate.setDate(checkDate.getDate() - 1);
+      while (practicedDays.has(toLocalDateKey(checkDate))) {
         streak++;
         checkDate.setDate(checkDate.getDate() - 1);
-      } else {
-        break;
+      }
+    } else if (practicedDays.has(yesterdayStr)) {
+      streak = 1;
+      checkDate = yesterday;
+      checkDate.setDate(checkDate.getDate() - 1);
+      while (practicedDays.has(toLocalDateKey(checkDate))) {
+        streak++;
+        checkDate.setDate(checkDate.getDate() - 1);
       }
     }
 
     return streak;
   },
 
-  getWeeklyPbCount(): number {
-    const sessions = this.getSessions();
-    const now = new Date();
-    const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay()).getTime();
-    return sessions.filter((s) => s.isPersonalBest && new Date(s.date).getTime() >= startOfWeek).length;
-  },
-
-  getPbStats(): {
-    thisWeek: number;
-    thisMonth: number;
-    allTime: number;
-    sinceReset: number;
-    resetDate: string | null;
-  } {
+  getPbStats(): PbStats {
     const sessions = this.getSessions();
     const now = new Date();
     // Sunday at 00:00:00 as start of the current week
     const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay()).getTime();
     // 1st of the current month at 00:00:00
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
-    const resetDate = localStorage.getItem('tempo_coach_pb_reset_date');
-    const resetTime = resetDate ? new Date(resetDate).getTime() : 0;
 
     const thisWeek = sessions.filter((s) => s.isPersonalBest && new Date(s.date).getTime() >= startOfWeek).length;
     const thisMonth = sessions.filter((s) => s.isPersonalBest && new Date(s.date).getTime() >= startOfMonth).length;
     const allTime = sessions.filter((s) => s.isPersonalBest).length;
-    const sinceReset = resetDate
-      ? sessions.filter((s) => s.isPersonalBest && new Date(s.date).getTime() >= resetTime).length
-      : allTime;
 
     return {
       thisWeek,
       thisMonth,
       allTime,
-      sinceReset,
-      resetDate,
     };
-  },
-
-  resetPbCounter(): void {
-    localStorage.setItem('tempo_coach_pb_reset_date', new Date().toISOString());
   },
 
   getPbDisplayRange(): PbDisplayRange {
@@ -485,7 +591,7 @@ export const storageManager = {
     try {
       const data = localStorage.getItem(TEMPO_RAMP_KEY);
       if (data) {
-        return { ...DEFAULT_RAMP_SETTINGS, ...JSON.parse(data) };
+        return sanitizeTempoRampSettings(JSON.parse(data));
       }
     } catch (e) {
       console.error('Failed to get tempo ramp settings', e);
@@ -495,7 +601,9 @@ export const storageManager = {
 
   saveTempoRampSettings(settings: TempoRampSettings): void {
     try {
-      localStorage.setItem(TEMPO_RAMP_KEY, JSON.stringify(settings));
+      const sanitized = sanitizeTempoRampSettings(settings);
+      localStorage.setItem(TEMPO_RAMP_KEY, JSON.stringify(sanitized));
+      this.markLocalChange();
     } catch (e) {
       console.error('Failed to save tempo ramp settings', e);
     }
@@ -504,12 +612,7 @@ export const storageManager = {
   getMetronomeTimbre(): MetronomeTimbre {
     try {
       const stored = localStorage.getItem(TIMBRE_KEY);
-      if (stored === 'woodblock' || stored === 'beep' || stored === 'loud') {
-        return stored;
-      }
-      if (stored === 'rimshot') {
-        return 'loud';
-      }
+      return sanitizeTimbre(stored);
     } catch (e) {
       console.error('Failed to get metronome timbre', e);
     }
@@ -518,7 +621,9 @@ export const storageManager = {
 
   saveMetronomeTimbre(timbre: MetronomeTimbre): void {
     try {
-      localStorage.setItem(TIMBRE_KEY, timbre);
+      const sanitized = sanitizeTimbre(timbre);
+      localStorage.setItem(TIMBRE_KEY, sanitized);
+      this.markLocalChange();
     } catch (e) {
       console.error('Failed to save metronome timbre', e);
     }
@@ -539,26 +644,49 @@ export const storageManager = {
   importDataJson(jsonString: string): boolean {
     try {
       const data = JSON.parse(jsonString);
+      if (typeof data !== 'object' || data === null) {
+        return false;
+      }
+
       if (Array.isArray(data.skills)) {
-        this.saveSkills(data.skills);
+        const validatedSkills = data.skills
+          .map((s: unknown, i: number) => sanitizeSkill(s, i))
+          .filter((s: Skill | null): s is Skill => Boolean(s));
+        this.saveSkills(validatedSkills);
       }
+
       if (Array.isArray(data.playlists)) {
-        this.savePlaylists(data.playlists);
+        const validatedPlaylists = data.playlists
+          .map((p: unknown) => sanitizePlaylist(p))
+          .filter((p: Playlist | null): p is Playlist => Boolean(p));
+        if (validatedPlaylists.length > 0) {
+          this.savePlaylists(validatedPlaylists);
+        }
       }
+
       if (data.activePlaylistId && typeof data.activePlaylistId === 'string') {
         this.setActivePlaylistId(data.activePlaylistId, false);
       }
+
       // Ensure playlists reconcile against imported skills
       this.getPlaylists();
+
       if (Array.isArray(data.sessions)) {
-        localStorage.setItem(SESSIONS_KEY, JSON.stringify(data.sessions));
+        const validatedSessions = data.sessions
+          .map((s: unknown) => sanitizeSession(s))
+          .filter((s: PracticeSessionLog | null): s is PracticeSessionLog => Boolean(s));
+        this.saveSessions(validatedSessions);
       }
+
       if (data.tempoRampSettings) {
-        this.saveTempoRampSettings(data.tempoRampSettings);
+        this.saveTempoRampSettings(sanitizeTempoRampSettings(data.tempoRampSettings));
       }
+
       if (data.timbre) {
-        this.saveMetronomeTimbre(data.timbre);
+        this.saveMetronomeTimbre(sanitizeTimbre(data.timbre));
       }
+
+      this.markLocalChange();
       return true;
     } catch (e) {
       console.error('Failed to import JSON data', e);

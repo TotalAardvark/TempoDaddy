@@ -7,7 +7,6 @@ interface TealProgressGraphProps {
   history: PracticeSessionLog[];
   personalBestBpm: number;
   startingBpm?: number;
-  currentBpm?: number;
   width?: number;
   height?: number;
   showLabels?: boolean;
@@ -15,6 +14,7 @@ interface TealProgressGraphProps {
   sticking?: string;
   interactive?: boolean;
   onClick?: (e: React.MouseEvent) => void;
+  onModalOpenChange?: (open: boolean) => void;
 }
 
 export const TealProgressGraph: React.FC<TealProgressGraphProps> = ({
@@ -28,8 +28,13 @@ export const TealProgressGraph: React.FC<TealProgressGraphProps> = ({
   sticking,
   interactive = true,
   onClick,
+  onModalOpenChange,
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const handleSetModalOpen = (open: boolean) => {
+    setIsModalOpen(open);
+    onModalOpenChange?.(open);
+  };
   const gradientId = useId();
 
   const paddingX = 6;
@@ -85,7 +90,7 @@ export const TealProgressGraph: React.FC<TealProgressGraphProps> = ({
     }
     if (interactive) {
       e.stopPropagation();
-      setIsModalOpen(true);
+      handleSetModalOpen(true);
     }
   };
 
@@ -93,7 +98,7 @@ export const TealProgressGraph: React.FC<TealProgressGraphProps> = ({
     if (interactive && (e.key === 'Enter' || e.key === ' ')) {
       e.preventDefault();
       e.stopPropagation();
-      setIsModalOpen(true);
+      handleSetModalOpen(true);
     }
   };
 
@@ -237,7 +242,7 @@ export const TealProgressGraph: React.FC<TealProgressGraphProps> = ({
       {interactive && isModalOpen && (
         <LifetimeProgressionModal
           isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
+          onClose={() => handleSetModalOpen(false)}
           history={history}
           personalBestBpm={personalBestBpm}
           startingBpm={startingBpm}

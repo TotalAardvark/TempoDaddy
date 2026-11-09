@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { X, Check, TrendingUp, RotateCcw } from 'lucide-react';
 import type { TempoRampSettings } from '../types';
 import { DEFAULT_RAMP_SETTINGS } from '../storage/storageManager';
@@ -29,8 +29,12 @@ export const TempoRampModal: React.FC<TempoRampModalProps> = ({
     measures: settings.measures,
     enabled: settings.enabled,
   });
+  const [prevOpen, setPrevOpen] = useState(isOpen);
+  const [prevSettings, setPrevSettings] = useState(settings);
 
-  useEffect(() => {
+  if (isOpen !== prevOpen || settings !== prevSettings) {
+    setPrevOpen(isOpen);
+    setPrevSettings(settings);
     if (isOpen) {
       setDraft({
         startPercent: settings.startPercent,
@@ -39,7 +43,7 @@ export const TempoRampModal: React.FC<TempoRampModalProps> = ({
         enabled: settings.enabled,
       });
     }
-  }, [isOpen, settings]);
+  }
 
   if (!isOpen) return null;
 

@@ -70,7 +70,7 @@ export const ExitPromptModal: React.FC<ExitPromptModalProps> = ({
               <div className="text-base font-black font-mono text-white flex items-center gap-1.5">
                 <span>{currentBpm} BPM</span>
                 {isNewPb && (
-                  <span className="px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 text-[10px] font-sans font-bold flex items-center gap-0.5">
+                  <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[10px] font-sans font-bold flex items-center gap-0.5">
                     <TrendingUp className="w-2.5 h-2.5" />
                     New PB!
                   </span>
@@ -82,7 +82,6 @@ export const ExitPromptModal: React.FC<ExitPromptModalProps> = ({
               <TealProgressGraph
                 history={history}
                 personalBestBpm={personalBestBpm}
-                currentBpm={currentBpm}
                 startingBpm={startingBpm}
                 skillTitle={skillTitle}
                 sticking={sticking}

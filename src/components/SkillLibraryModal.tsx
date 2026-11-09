@@ -80,12 +80,16 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
   onDataReloaded,
 }) => {
   const [isAdding, setIsAdding] = useState(initialOpenAddSkill);
+  const [prevOpen, setPrevOpen] = useState(isOpen);
+  const [prevInitialAdd, setPrevInitialAdd] = useState(initialOpenAddSkill);
 
-  useEffect(() => {
+  if (isOpen !== prevOpen || initialOpenAddSkill !== prevInitialAdd) {
+    setPrevOpen(isOpen);
+    setPrevInitialAdd(initialOpenAddSkill);
     if (isOpen && initialOpenAddSkill) {
       setIsAdding(true);
     }
-  }, [isOpen, initialOpenAddSkill]);
+  }
   const [activeTab, setActiveTab] = useState<'presets' | 'custom'>('presets');
   const [hibernatedExpanded, setHibernatedExpanded] = useState(false);
   const [isReorderingMode, setIsReorderingMode] = useState(false);
@@ -133,11 +137,29 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
   // Departing hibernated skill state for smooth queue animation feedback
   const [departingSkillId, setDepartingSkillId] = useState<string | null>(null);
   const [departingSkillCollapsing, setDepartingSkillCollapsing] = useState(false);
+  const departingTimer1Ref = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const departingTimer2Ref = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearDepartingTimers = () => {
+    if (departingTimer1Ref.current) {
+      clearTimeout(departingTimer1Ref.current);
+      departingTimer1Ref.current = null;
+    }
+    if (departingTimer2Ref.current) {
+      clearTimeout(departingTimer2Ref.current);
+      departingTimer2Ref.current = null;
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      clearDepartingTimers();
+    };
+  }, []);
 
   // Drag-and-drop reordering state
   const [draggingSkillId, setDraggingSkillId] = useState<string | null>(null);
   const [dragOverSkillId, setDragOverSkillId] = useState<string | null>(null);
-  const activeSkillsListRef = useRef<HTMLDivElement | null>(null);
 
   const triggerConfirmAction = (
     action: 'invert' | 'duplicate' | 'hibernate' | 'delete',
@@ -282,7 +304,13 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
       if (isSyncModalOpen) return;
       if (e.key === 'Escape') {
         e.preventDefault();
-        if (isAdding) {
+        if (multiPlaylistDeleteWarning) {
+          setMultiPlaylistDeleteWarning(null);
+        } else if (orphanWarningSkillId) {
+          setOrphanWarningSkillId(null);
+        } else if (activeConfirmAction) {
+          clearConfirmAction();
+        } else if (isAdding) {
           setIsAdding(false);
         } else if (editingSkill) {
           setEditingSkill(null);
@@ -293,7 +321,16 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [isOpen, isAdding, editingSkill, isSyncModalOpen, onClose]);
+  }, [
+    isOpen,
+    isAdding,
+    editingSkill,
+    isSyncModalOpen,
+    multiPlaylistDeleteWarning,
+    orphanWarningSkillId,
+    activeConfirmAction,
+    onClose,
+  ]);
 
   if (!isOpen) return null;
 
@@ -347,16 +384,19 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
     const targetSkill = skills.find((s) => s.id === skillId);
     setEditingSkill(null);
     clearConfirmAction();
+    clearDepartingTimers();
 
     if (targetSkill && !targetSkill.isHibernated) {
       setDepartingSkillId(skillId);
       setDepartingSkillCollapsing(false);
 
       // Keep visible in queue with banner for ~800ms
-      setTimeout(() => {
+      departingTimer1Ref.current = setTimeout(() => {
+        departingTimer1Ref.current = null;
         setDepartingSkillCollapsing(true);
         // Animate collapse & fade, then call onHibernateSkill
-        setTimeout(() => {
+        departingTimer2Ref.current = setTimeout(() => {
+          departingTimer2Ref.current = null;
           onHibernateSkill(skillId);
           setDepartingSkillId(null);
           setDepartingSkillCollapsing(false);
@@ -565,7 +605,7 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
         </div>
 
         {/* Quick Actions centered with individual dark grey outlines and pipe dividers */}
-        <div className="pt-2 border-t border-neutral-850">
+        <div className="pt-2 border-t border-neutral-800">
           <div className="text-[10px] uppercase font-mono tracking-wider text-neutral-400 mb-1.5 flex justify-between items-center px-1">
             <span>Quick Actions</span>
             {duplicateSuccessText && (
@@ -941,7 +981,7 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
                     </button>
                   </div>
 
-                  <div ref={activeSkillsListRef} className="space-y-2">
+                  <div className="space-y-2">
                     {activeSkills.map((skill) => {
                       const globalIndex = skills.indexOf(skill);
                       const history = historyBySkillId.get(skill.id) ?? [];
@@ -974,6 +1014,8 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
                               <button
                                 type="button"
                                 onClick={() => {
+                                  clearDepartingTimers();
+                                  setDepartingSkillCollapsing(false);
                                   setHibernatedExpanded(true);
                                   onHibernateSkill(skill.id);
                                   setDepartingSkillId(null);
@@ -1008,7 +1050,7 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
                           <button
                             type="button"
                             onClick={() => handleOpenEdit(skill)}
-                            className="w-6.5 h-6.5 rounded-lg bg-neutral-850 hover:bg-neutral-800 border border-neutral-800 hover:border-neutral-700 text-neutral-400 hover:text-amber-400 flex items-center justify-center shrink-0 transition"
+                            className="w-6.5 h-6.5 rounded-lg bg-neutral-800 hover:bg-neutral-700 border border-neutral-800 hover:border-neutral-700 text-neutral-400 hover:text-amber-400 flex items-center justify-center shrink-0 transition"
                             title="Edit Practice Settings"
                           >
                             <Pencil className="w-3 h-3" />
@@ -1040,7 +1082,7 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
                             {isReorderingMode ? (
                               <div
                                 onPointerDown={(e) => handlePointerReorderStart(e, skill)}
-                                className="w-6.5 h-6.5 rounded-lg bg-neutral-900 border border-neutral-750 hover:border-amber-400/60 text-neutral-400 hover:text-amber-400 flex items-center justify-center cursor-grab active:cursor-grabbing hover:bg-neutral-800 transition select-none touch-none"
+                                className="w-6.5 h-6.5 rounded-lg bg-neutral-900 border border-neutral-700 hover:border-amber-400/60 text-neutral-400 hover:text-amber-400 flex items-center justify-center cursor-grab active:cursor-grabbing hover:bg-neutral-800 transition select-none touch-none"
                                 title="Drag up or down to reorder"
                               >
                                 <GripVertical className="w-3.5 h-3.5" />
@@ -1102,7 +1144,7 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
                               <button
                                 type="button"
                                 onClick={() => handleOpenEdit(skill)}
-                                className="w-6.5 h-6.5 rounded-lg bg-neutral-850 hover:bg-neutral-800 border border-neutral-800 hover:border-neutral-700 text-neutral-400 hover:text-amber-400 flex items-center justify-center shrink-0 transition"
+                                className="w-6.5 h-6.5 rounded-lg bg-neutral-800 hover:bg-neutral-700 border border-neutral-800 hover:border-neutral-700 text-neutral-400 hover:text-amber-400 flex items-center justify-center shrink-0 transition"
                                 title="Edit Practice Settings"
                               >
                                 <Pencil className="w-3 h-3" />
@@ -1214,7 +1256,7 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
                       <div>
                         <div className="text-xs font-bold text-white flex items-center gap-1.5">
                           <span>{preset.title}</span>
-                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-neutral-800 text-neutral-400 font-mono">
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-400 font-mono">
                             {preset.subdivision} {preset.isTriplet ? '3' : ''}
                           </span>
                         </div>
@@ -1353,7 +1395,7 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
                     <button
                       type="button"
                       onClick={handleInvertCustom}
-                      className="w-full py-2 px-3 bg-neutral-900 hover:bg-neutral-800 active:scale-[0.98] border border-neutral-750 hover:border-amber-400/50 text-neutral-200 rounded-xl font-medium text-xs flex items-center justify-center gap-1.5 transition shadow-sm"
+                      className="w-full py-2 px-3 bg-neutral-900 hover:bg-neutral-800 active:scale-[0.98] border border-neutral-700 hover:border-amber-400/50 text-neutral-200 rounded-xl font-medium text-xs flex items-center justify-center gap-1.5 transition shadow-sm"
                       title="Invert Sticking (R ⇄ L) & update title"
                     >
                       <ArrowLeftRight className="w-3.5 h-3.5 text-amber-400 shrink-0" />
@@ -1433,7 +1475,7 @@ export const SkillLibraryModal: React.FC<SkillLibraryModalProps> = ({
             <p className="text-xs text-neutral-300 leading-relaxed">
               Warning: <strong className="text-amber-400">"{multiPlaylistDeleteWarning.skillTitle}"</strong> is also in the following playlists:
             </p>
-            <ul className="text-xs text-neutral-400 space-y-1 bg-neutral-950 p-2.5 rounded-xl border border-neutral-850">
+            <ul className="text-xs text-neutral-400 space-y-1 bg-neutral-950 p-2.5 rounded-xl border border-neutral-800">
               {multiPlaylistDeleteWarning.playlists.map((p) => (
                 <li key={p.id} className="flex items-center gap-1.5">
                   <ListMusic className="w-3.5 h-3.5 text-amber-400" />

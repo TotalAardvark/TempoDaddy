@@ -299,7 +299,7 @@ export const LifetimeProgressionModal: React.FC<LifetimeProgressionModalProps> =
                       {activePoint.session.bpm} BPM
                     </span>
                     {activePoint.session.isPersonalBest && (
-                      <span className="px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 text-[10px] font-bold border border-amber-500/40">
+                      <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[10px] font-bold border border-amber-500/40">
                         HIGH SCORE
                       </span>
                     )}

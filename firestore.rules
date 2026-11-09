@@ -1,0 +1,136 @@
+rules_version = '2';
+
+// ===============================================================
+// Assumed Data Model
+// ===============================================================
+//
+// This security rules file assumes the following data structures:
+//
+// Collection: profiles
+// Document ID: profileId (2-word code or unique profile identifier)
+// Fields:
+//   - ownerUid: string (required, immutable) - Firebase Auth UID of the profile owner
+//   - skills: list (required, max 1000 items) - Practice skills list
+//   - sessions: list (required, max 5000 items) - Practice session history logs
+//   - updatedAt: string (required, max 50 chars) - ISO timestamp of last update
+//   - createdAt: string (optional, immutable, max 50 chars) - ISO timestamp of profile creation
+//   - playlists: list (optional, max 100 items) - Practice playlists list
+//   - activePlaylistId: string (optional, max 100 chars) - Currently active playlist ID
+//   - tempoRampSettings: map (optional) - Tempo ramp configuration map
+//   - timbre: string (optional, max 50 chars) - Metronome sound timbre
+//
+// ===============================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    // Check if the user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Check if the user owns the resource by matching UID
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Check if user is owner based on document's ownerUid field
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.ownerUid;
+    }
+
+    // Validate required fields exist in data map
+    function hasRequiredFields(data, fields) {
+      return data.keys().hasAll(fields);
+    }
+
+    // Validate that the document contains only allowed fields
+    function hasOnlyAllowedFields(data, fields) {
+      return data.keys().hasOnly(fields);
+    }
+
+    // Validate string type and length bounds
+    function validStringLength(strVal, minLen, maxLen) {
+      return strVal is string && strVal.size() >= minLen && strVal.size() <= maxLen;
+    }
+
+    // Validate list type and enforce maximum size
+    function isValidList(listVal, maxSize) {
+      return listVal is list && listVal.size() <= maxSize;
+    }
+
+    // Check that an immutable field is not modified if it already exists
+    function isImmutable(field) {
+      return !(field in resource.data) ||
+        ((field in request.resource.data) && request.resource.data[field] == resource.data[field]);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    // Validates full profile document structure for create and update operations
+    function isValidProfile(data) {
+      return hasRequiredFields(data, ['ownerUid', 'skills', 'sessions', 'updatedAt'])
+        && hasOnlyAllowedFields(data, [
+          'ownerUid',
+          'skills',
+          'sessions',
+          'updatedAt',
+          'createdAt',
+          'playlists',
+          'activePlaylistId',
+          'tempoRampSettings',
+          'timbre'
+        ])
+        && validStringLength(data.ownerUid, 1, 128)
+        && isValidList(data.skills, 1000)
+        && isValidList(data.sessions, 5000)
+        && validStringLength(data.updatedAt, 1, 50)
+        && (!('createdAt' in data) || validStringLength(data.createdAt, 1, 50))
+        && (!('playlists' in data) || isValidList(data.playlists, 100))
+        && (!('activePlaylistId' in data) || validStringLength(data.activePlaylistId, 1, 100))
+        && (!('tempoRampSettings' in data) || data.tempoRampSettings is map)
+        && (!('timbre' in data) || validStringLength(data.timbre, 1, 50));
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    // Profiles collection rules
+    match /profiles/{profileId} {
+      // Read (get): Allowed only if user is authenticated and is the owner
+      allow get: if isDocOwner();
+
+      // Query (list): Allowed only if user is authenticated and query is constrained to own documents
+      allow list: if isDocOwner();
+
+      // Creation (create): Allowed only if user is authenticated, sets ownerUid to their own auth UID,
+      // and passes strict schema and type validation.
+      allow create: if isAuthenticated()
+                    && request.resource.data.ownerUid == request.auth.uid
+                    && isValidProfile(request.resource.data);
+
+      // Update (update): Allowed only if user is authenticated and is the owner,
+      // ownerUid is immutable, createdAt is immutable (if present),
+      // and the post-update document remains valid.
+      allow update: if isDocOwner()
+                    && request.resource.data.ownerUid == resource.data.ownerUid
+                    && isImmutable('createdAt')
+                    && isValidProfile(request.resource.data);
+
+      // Delete (delete): Allowed only if user is authenticated and is the owner
+      allow delete: if isDocOwner();
+    }
+
+    // Explicit default deny for any other path in the database
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

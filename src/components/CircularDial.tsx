@@ -122,7 +122,7 @@ export const CircularDial: React.FC<CircularDialProps> = ({
     };
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
-  }, [bpm, maxBpm, minBpm, onBpmChange]);
+  }, [maxBpm, minBpm, onBpmChange]);
 
   // Trigger instant-attack, tempo-scaled visual flashes on every tick
   useEffect(() => {
@@ -301,7 +301,7 @@ export const CircularDial: React.FC<CircularDialProps> = ({
           <div className="flex gap-1.5 mb-1.5 items-center">
             <span
               ref={pulseDotRef}
-              className="w-2.5 h-2.5 rounded-full bg-neutral-850 will-change-[background-color,transform,box-shadow]"
+              className="w-2.5 h-2.5 rounded-full bg-neutral-800 will-change-[background-color,transform,box-shadow]"
             />
           </div>
 
