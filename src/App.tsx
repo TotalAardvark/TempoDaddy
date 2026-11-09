@@ -25,6 +25,7 @@ import { SubdivisionControls } from './components/SubdivisionControls';
 import { ProgressSparkline } from './components/ProgressSparkline';
 import { ConfirmSessionModal } from './components/ConfirmSessionModal';
 import { ColdStartScreen } from './components/ColdStartScreen';
+import { FrontDoorScreen } from './components/FrontDoorScreen';
 import { RoutineCompleteScreen } from './components/RoutineCompleteScreen';
 import { SkillLibraryModal } from './components/SkillLibraryModal';
 import { PlaylistsModal } from './components/PlaylistsModal';
@@ -77,6 +78,7 @@ export default function App() {
 
   // App screen flow state
   const [isColdStart, setIsColdStart] = useState<boolean>(true);
+  const [isGymDrawerOpen, setIsGymDrawerOpen] = useState<boolean>(false);
   const [isRoutineFinished, setIsRoutineFinished] = useState<boolean>(false);
   const [isLibraryOpen, setIsLibraryOpen] = useState<boolean>(false);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState<boolean>(false);
@@ -146,11 +148,8 @@ export default function App() {
   // Active skill in view
   const currentSkill: Skill | undefined = activeSkills[activeSkillIndex] || activeSkills[0] || skills[0];
 
-  // Metronome state
-  const [bpm, setBpm] = useState<number>(() => {
-    const settings = storageManager.getTempoRampSettings();
-    return currentSkill ? Math.round(currentSkill.personalBestBpm * (settings.startPercent / 100)) : 80;
-  });
+  // Metronome state (defaults to 67 BPM on the Front Door; loadSkill sets warmup BPM on workout start)
+  const [bpm, setBpm] = useState<number>(67);
   const [startingBpm, setStartingBpm] = useState<number>(() => {
     const settings = storageManager.getTempoRampSettings();
     return currentSkill ? Math.round(currentSkill.personalBestBpm * (settings.startPercent / 100)) : 80;
@@ -1144,6 +1143,7 @@ export default function App() {
     setCompletedSkillIds(new Set());
     setSessionSkillOrder([]);
     setPendingImportBundle(null);
+    setIsGymDrawerOpen(true);
     clearImportHash();
 
     if (importedSkills[0]) {
@@ -1231,37 +1231,87 @@ export default function App() {
     </>
   );
 
-  // SCREEN 1: Cold start screen on first visit
+  // Stop Front Door quick metronome cleanly and slide up the Tempo Daddy Gym drawer
+  const handleEnterGym = () => {
+    if (engineRef.current && isPlaying) {
+      wakeLockManager.release();
+      engineRef.current.stop();
+      setIsPlaying(false);
+    }
+    setIsGymDrawerOpen(true);
+  };
+
+  // Toggle standalone quick metronome on Front Door (Card 0: Metronome Daddy)
+  const handleToggleFrontDoorMetronome = async () => {
+    if (!engineRef.current) return;
+    if (isPlaying) {
+      wakeLockManager.release();
+      engineRef.current.stop();
+      setIsPlaying(false);
+    } else {
+      wakeLockManager.request();
+      rampStateRef.current.active = false;
+      setIsRampActive(false);
+      engineRef.current.setBpm(bpm);
+      engineRef.current.setSubdivision('1/4', false);
+      await engineRef.current.unlockAudio();
+      engineRef.current.start();
+      setIsPlaying(true);
+    }
+  };
+
+  // SCREEN 1: Unified Front Door + Sliding "Enter the Gym" Drawer
   if (isColdStart) {
+    const isColdStartModalOpen = isLibraryOpen || isPlaylistsModalOpen || Boolean(pendingImportBundle);
     return (
-      <>
-        <ColdStartScreen
-          firstSkill={topSkill}
-          history={topSkillHistory}
-          streak={streak}
-          practicedDates={practicedDates}
-          pbDisplayCount={pbDisplayCount}
-          pbStats={pbStats}
-          pbDisplayRange={pbDisplayRange}
-          onPbDisplayRangeChange={handlePbDisplayRangeChange}
-          isRandomOrder={isRandomOrder}
-          onToggleRandomOrder={(val) => {
-            setIsRandomOrder(val);
-            localStorage.setItem('tempo_coach_random_order', String(val));
-          }}
-          isModalOpen={isLibraryOpen || isPlaylistsModalOpen || Boolean(pendingImportBundle)}
-          onStart={handleColdStart}
-          onOpenLibrary={() => {
-            setInitialOpenAddSkillInLibrary(false);
-            setIsLibraryOpen(true);
-          }}
-          onOpenAddSkill={() => {
-            setInitialOpenAddSkillInLibrary(true);
-            setIsLibraryOpen(true);
-          }}
+      <div className="relative h-[100dvh] max-h-[100dvh] w-full overflow-hidden bg-black">
+        <FrontDoorScreen
+          bpm={bpm}
+          isPlaying={isPlaying}
+          onBpmChange={handleUserBpmChange}
+          onTogglePlay={handleToggleFrontDoorMetronome}
+          onEnterGym={handleEnterGym}
+          isModalOpen={isColdStartModalOpen || isGymDrawerOpen}
         />
+
+        {/* Sliding Tempo Daddy Gym Drawer */}
+        <div
+          data-testid="gym-drawer-container"
+          aria-hidden={!isGymDrawerOpen}
+          className={`fixed inset-0 z-30 transition-transform duration-500 ease-out ${
+            isGymDrawerOpen ? 'translate-y-0' : 'translate-y-full pointer-events-none'
+          }`}
+        >
+          <ColdStartScreen
+            firstSkill={topSkill}
+            history={topSkillHistory}
+            streak={streak}
+            practicedDates={practicedDates}
+            pbDisplayCount={pbDisplayCount}
+            pbStats={pbStats}
+            pbDisplayRange={pbDisplayRange}
+            onPbDisplayRangeChange={handlePbDisplayRangeChange}
+            isRandomOrder={isRandomOrder}
+            onToggleRandomOrder={(val) => {
+              setIsRandomOrder(val);
+              localStorage.setItem('tempo_coach_random_order', String(val));
+            }}
+            isModalOpen={isColdStartModalOpen}
+            isActive={isGymDrawerOpen}
+            onReturnToFrontDoor={() => setIsGymDrawerOpen(false)}
+            onStart={handleColdStart}
+            onOpenLibrary={() => {
+              setInitialOpenAddSkillInLibrary(false);
+              setIsLibraryOpen(true);
+            }}
+            onOpenAddSkill={() => {
+              setInitialOpenAddSkillInLibrary(true);
+              setIsLibraryOpen(true);
+            }}
+          />
+        </div>
         {sharedModals}
-      </>
+      </div>
     );
   }
 

@@ -23,6 +23,7 @@ Tracking file for feature requests, ideas, and backlog tasks.
 | ID | Title | Priority | Complexity | Status |
 |---|---|:---:|:---:|:---:|
 | FR-017 | iOS PWA audio loss on app minimize / background resume | P3 | C1 | Open |
+| FR-021 | Session Review: Jump to exercise directly, replace Hibernate/Delete, faster exit | P3 | C0 | Open |
 | FR-009 | Onboarding experience design for new users | P3 | C2 | Open |
 | FR-010 | Text size accessibility (Large Text mode in settings) | P3 | C1 | Open |
 | FR-011 | Import/export skills or workouts via QR code | P2 | C1 | Open |
@@ -53,6 +54,17 @@ Tracking file for feature requests, ideas, and backlog tasks.
 ## Detailed Feature Requests (Open)
 
 ### Priority: P3 (High)
+
+#### [FR-021] Session Review: Jump to Exercise Directly, Replace Hibernate/Delete, Faster Exit
+- **Priority**: P3 (High)
+- **Complexity**: C0 (Low)
+- **Status**: Open
+- **Description**: Improvements to the Tempo Daddy Session Review / Routine Complete screen based on kid interview feedback and UX streamline:
+  - **Direct Exercise Retry**: Allow jumping straight back into practicing a specific exercise directly from the Session Review screen.
+  - **Replace Hibernate / Delete Actions**: The Hibernate and Delete buttons currently displayed on review rows are unnecessary and awkward in this context; replace them with the action to replay/retry that exact exercise, keeping the UI uncluttered.
+  - **Faster Exit & Navigation Shortcuts**:
+    - Pressing `Space` on the review screen should return to the main menu.
+    - Provide a smooth, low-clutter way to restart the workout or jump right back in.
 
 #### [FR-017] iOS PWA Audio Loss on App Minimize / Background Resume
 - **Priority**: P3 (High)

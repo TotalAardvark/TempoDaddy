@@ -3,6 +3,7 @@ import { X, QrCode, Copy, Check, Download } from 'lucide-react';
 import { QRCodeCanvas } from 'qrcode.react';
 import type { Playlist, Skill } from '../types';
 import { generatePlaylistShareUrl } from '../utils/playlistShare';
+import { TEMPO_DADDY_QR_BADGE_DATA_URI } from '../assets/qrLogoBadge';
 
 interface SharePlaylistQrModalProps {
   isOpen: boolean;
@@ -87,10 +88,16 @@ export const SharePlaylistQrModal: React.FC<SharePlaylistQrModalProps> = ({
             <QRCodeCanvas
               value={shareUrl}
               size={220}
-              level="M"
+              level="H"
               marginSize={2}
               bgColor="#ffffff"
               fgColor="#000000"
+              imageSettings={{
+                src: TEMPO_DADDY_QR_BADGE_DATA_URI,
+                height: 52,
+                width: 52,
+                excavate: true,
+              }}
             />
           </div>
         </div>

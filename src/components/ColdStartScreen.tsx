@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Play, Flame, Music, ListMusic, Trophy } from 'lucide-react';
+import { Play, Flame, Music, ListMusic, Trophy, ChevronDown } from 'lucide-react';
 import type { Skill, PracticeSessionLog, PbDisplayRange } from '../types';
 import { TealProgressGraph } from './TealProgressGraph';
 import { PersonalBestsTooltip } from './PersonalBestsTooltip';
@@ -21,6 +21,8 @@ interface ColdStartScreenProps {
   isRandomOrder?: boolean;
   onToggleRandomOrder?: (random: boolean) => void;
   isModalOpen?: boolean;
+  isActive?: boolean;
+  onReturnToFrontDoor?: () => void;
   onStart: () => void;
   onOpenLibrary: () => void;
   onOpenAddSkill?: () => void;
@@ -38,6 +40,8 @@ export const ColdStartScreen: React.FC<ColdStartScreenProps> = ({
   isRandomOrder = false,
   onToggleRandomOrder,
   isModalOpen = false,
+  isActive = true,
+  onReturnToFrontDoor,
   onStart,
   onOpenLibrary,
   onOpenAddSkill,
@@ -48,28 +52,33 @@ export const ColdStartScreen: React.FC<ColdStartScreenProps> = ({
 
   // Pressing ANY key on the keyboard starts the exercise immediately (excluding Escape & modifiers)
   useEffect(() => {
+    if (!isActive) return;
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (isModalOpen || isProgressionModalOpen) return;
+      // Don't trigger if user is interacting with an input or textarea
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+      // If a tooltip is open, handle closing it on Escape; otherwise Escape returns to Front Door if available
+      if (e.key === 'Escape') {
+        if (isPbTooltipOpen || isStreakTooltipOpen) {
+          if (isPbTooltipOpen) setIsPbTooltipOpen(false);
+          if (isStreakTooltipOpen) setIsStreakTooltipOpen(false);
+          return;
+        }
+        if (onReturnToFrontDoor) {
+          e.preventDefault();
+          onReturnToFrontDoor();
+        }
+        return;
+      }
       // If playlist is empty, don't trigger start on keypress; open add menu instead
       if (!firstSkill) {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
           if (onOpenAddSkill) onOpenAddSkill();
           else onOpenLibrary();
-        }
-        return;
-      }
-      // Don't trigger if user is interacting with an input or textarea
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
-        return;
-      }
-      // If a tooltip is open, handle closing it on Escape and do not start practice mode
-      if (e.key === 'Escape') {
-        if (isPbTooltipOpen) {
-          setIsPbTooltipOpen(false);
-        }
-        if (isStreakTooltipOpen) {
-          setIsStreakTooltipOpen(false);
         }
         return;
       }
@@ -92,7 +101,7 @@ export const ColdStartScreen: React.FC<ColdStartScreenProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onStart, isPbTooltipOpen, isStreakTooltipOpen, isModalOpen, isProgressionModalOpen, firstSkill, onOpenAddSkill, onOpenLibrary]);
+  }, [isActive, onStart, onReturnToFrontDoor, isPbTooltipOpen, isStreakTooltipOpen, isModalOpen, isProgressionModalOpen, firstSkill, onOpenAddSkill, onOpenLibrary]);
 
   return (
     <div
@@ -109,6 +118,28 @@ export const ColdStartScreen: React.FC<ColdStartScreenProps> = ({
       style={{ paddingTop: 'var(--app-header-padding-top)' }}
       className="h-[100dvh] max-h-[100dvh] overflow-hidden w-full flex flex-col justify-between items-center px-6 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-gradient-to-b from-neutral-950 via-neutral-900 to-black text-white cursor-pointer select-none transition-colors"
     >
+      {/* Optional Top Drawer Pull-Down Handle to return to Metronome Daddy & Tour Guide */}
+      {onReturnToFrontDoor && (
+        <div className="w-full flex justify-center -mt-1 mb-1">
+          <button
+            type="button"
+            data-testid="return-to-front-door"
+            onClick={(e) => {
+              e.stopPropagation();
+              onReturnToFrontDoor();
+            }}
+            className="flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-800 hover:border-amber-500/40 text-[11px] font-mono text-neutral-400 hover:text-amber-300 transition cursor-pointer"
+            title="Slide down to Metronome Daddy & Tour Guide (Esc)"
+          >
+            <ChevronDown className="w-3.5 h-3.5 text-amber-400" />
+            <span>Metronome &amp; Tour</span>
+            <kbd className="ml-0.5 px-1 py-0.2 rounded bg-neutral-950 border border-neutral-700 text-[9px] text-neutral-500">
+              Esc
+            </kbd>
+          </button>
+        </div>
+      )}
+
       {/* Top Header Navigation: matches practice screen styling */}
       <div className="w-full max-w-md flex items-center justify-between">
         {/* Left: Branding */}
