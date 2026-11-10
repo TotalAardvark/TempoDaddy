@@ -5,6 +5,7 @@
 - Test Command: `npm test`
 - Lint Command: `npm run lint`
 - Build Command: `npm run build`
+- Dev Server Command: `npm run dev`
 
 ## Non-Negotiable Invariants (Strict)
 1. **Never Weaken Tests:** When tests fail, do NOT edit assertions, comment out tests, or relax linter configurations to get a green exit code. Always fix the implementation code.
@@ -15,6 +16,7 @@
 6. **No Unvetted Dependencies & Slopsquatting Protection:** Never install new packages (`npm install`, `pip install`, etc.) without explicit user permission. Always verify that package names exist in the official registry (e.g., via `npm view <package>`) before suggesting them to guard against hallucinated malicious packages.
 7. **No Unprompted Architectural Drift:** Do not alter schema definitions, change global configs, or create top-level directories without explicit user authorization.
 8. **Isolated Blast Radius:** Restrict edits strictly to files relevant to the active task.
+9. **Branch & Worktree Hygiene:** Never code directly on `main`/`master`. Parallel background agents must use isolated worktrees (`Workspace: 'share'`). Prune worktrees immediately upon merge to prevent disk clutter. Before shipping, verify no upstream drift against `origin/main`.
 
 ## MCP Tooling & External Integrations
 - Active Project MCPs: None by default.
@@ -23,6 +25,7 @@
 ## Dynamic Skills Index (Consult On-Demand)
 - When planning non-trivial features: read `skills/spec-workflow/SKILL.md`
 - When requested to review code or diffs: read `skills/code-review/SKILL.md`
+- When shipping, verifying, or deploying features: read `skills/deploy/SKILL.md`
 - When running periodic maintenance / health checks: read `skills/health-audit/SKILL.md`
 
 ## The Two-Strike Rule for Custom Skills

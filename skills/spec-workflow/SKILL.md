@@ -17,3 +17,4 @@ You are strictly forbidden from modifying or creating project implementation cod
    - **Potential Risks / Edge Cases:** Security implications, breaking schema changes, or performance bottlenecks.
 2. Pause and present the drafted specification to the user.
 3. **DO NOT** proceed to code implementation until the user explicitly responds with approval (e.g., "Approved" or "Proceed").
+4. **Branch & Worktree Initialization:** Upon user approval, check current git branch (`git branch --show-current`). If on `main` or `master`, automatically create and switch to a dedicated feature branch: `git checkout -b feat/[feature-slug]`. For concurrent subagents, initialize an isolated worktree (`Workspace: 'share'`).

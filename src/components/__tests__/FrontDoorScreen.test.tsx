@@ -392,4 +392,80 @@ describe('FrontDoorScreen & Unified Front Door (AC1–AC8)', () => {
 
     window.location.hash = '';
   });
+
+  it('AC1, AC2, AC3: Front Door pop/bounce animation, apparatus-targeted BPM scrolling, and carousel scroll navigation', () => {
+    const TestHarness = ({ isModalOpen = false }: { isModalOpen?: boolean }) => {
+      const [bpm, setBpm] = useState(120);
+      return (
+        <FrontDoorScreen
+          bpm={bpm}
+          isPlaying={false}
+          onBpmChange={(next) => setBpm((prev) => (typeof next === 'function' ? next(prev) : next))}
+          onTogglePlay={vi.fn()}
+          onEnterGym={vi.fn()}
+          isModalOpen={isModalOpen}
+        />
+      );
+    };
+
+    const { rerender } = render(<TestHarness />);
+
+    // AC1: Metronome Icon hover scale is scale-[1.06] and click bounce animation triggers
+    const trigger = screen.getByTestId('metronome-daddy-trigger');
+    const icon = trigger.querySelector('svg');
+    expect(icon?.getAttribute('class')).toContain('group-hover:scale-[1.06]');
+
+    fireEvent.click(trigger);
+    expect(trigger.className).toContain('animate-metronome-bounce');
+
+    // AC2: Apparatus scrolling (Scroll Up = BPM Up, Scroll Down = BPM Down)
+    // 1. Over Metronome Daddy trigger
+    fireEvent.wheel(trigger, { deltaY: -100 });
+    expect(screen.getByTestId('hero-bpm-display').textContent).toBe('121');
+    expect(screen.getByTestId('active-card-index').getAttribute('data-index')).toBe('0');
+
+    // 2. Over giant BPM display
+    const bpmDisplay = screen.getByTestId('hero-bpm-display');
+    fireEvent.wheel(bpmDisplay, { deltaY: 100 });
+    expect(screen.getByTestId('hero-bpm-display').textContent).toBe('120');
+    expect(screen.getByTestId('active-card-index').getAttribute('data-index')).toBe('0');
+
+    // 3. Over amber ring
+    const amberRing = screen.getByTestId('metronome-amber-ring');
+    fireEvent.wheel(amberRing, { deltaY: -100 });
+    expect(screen.getByTestId('hero-bpm-display').textContent).toBe('121');
+    expect(screen.getByTestId('active-card-index').getAttribute('data-index')).toBe('0');
+
+    // 4. Over horizontal thumbdial
+    const thumbDial = screen.getByTestId('horizontal-thumb-dial');
+    fireEvent.wheel(thumbDial, { deltaY: -100 });
+    expect(screen.getByTestId('hero-bpm-display').textContent).toBe('122');
+    expect(screen.getByTestId('active-card-index').getAttribute('data-index')).toBe('0');
+
+    // AC3: Carousel scroll on screen / negative space
+    const frontDoorRoot = screen.getByTestId('front-door-screen');
+
+    // Scroll down on root outside apparatus advances to Card 1
+    fireEvent.wheel(frontDoorRoot, { deltaY: 100 });
+    expect(screen.getByTestId('active-card-index').getAttribute('data-index')).toBe('1');
+
+    // Rapid successive wheel event within cooldown (400ms) is suppressed
+    fireEvent.wheel(frontDoorRoot, { deltaY: 100 });
+    expect(screen.getByTestId('active-card-index').getAttribute('data-index')).toBe('1');
+
+    // Scroll up returns to Card 0 (after advance cooldown)
+    const originalDateNow = Date.now;
+    Date.now = () => originalDateNow() + 500;
+    try {
+      fireEvent.wheel(frontDoorRoot, { deltaY: -100 });
+      expect(screen.getByTestId('active-card-index').getAttribute('data-index')).toBe('0');
+    } finally {
+      Date.now = originalDateNow;
+    }
+
+    // Modal guard: when isModalOpen is true, scrolling does not change cards
+    rerender(<TestHarness isModalOpen={true} />);
+    fireEvent.wheel(frontDoorRoot, { deltaY: 100 });
+    expect(screen.getByTestId('active-card-index').getAttribute('data-index')).toBe('0');
+  });
 });

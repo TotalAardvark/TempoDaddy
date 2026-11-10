@@ -127,6 +127,7 @@ const TOUR_CARDS: TourCardDef[] = [
 ];
 
 const TOTAL_CARDS = 1 + TOUR_CARDS.length; // Card 0 (Metronome Daddy) + 7 Tour Guide cards = 8
+const CAROUSEL_WHEEL_COOLDOWN_MS = 400;
 
 export const FrontDoorScreen: React.FC<FrontDoorScreenProps> = ({
   bpm,
@@ -138,6 +139,7 @@ export const FrontDoorScreen: React.FC<FrontDoorScreenProps> = ({
 }) => {
   const [activeCardIndex, setActiveCardIndex] = useState<number>(0);
   const [slideDirection, setSlideDirection] = useState<'next' | 'prev'>('next');
+  const [isIconBouncing, setIsIconBouncing] = useState<boolean>(false);
   const [isHintDismissed, setIsHintDismissed] = useState<boolean>(() => {
     try {
       return localStorage.getItem(METRONOME_HINT_STORAGE_KEY) === 'true';
@@ -152,6 +154,14 @@ export const FrontDoorScreen: React.FC<FrontDoorScreenProps> = ({
   });
 
   const lastBpmKeyRef = useRef<{ key: string; time: number }>({ key: '', time: 0 });
+  const lastCarouselWheelTimeRef = useRef<number>(0);
+  const bounceTimeoutRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (bounceTimeoutRef.current) clearTimeout(bounceTimeoutRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     const handleResize = () => {
@@ -185,6 +195,13 @@ export const FrontDoorScreen: React.FC<FrontDoorScreenProps> = ({
   }, []);
 
   const handleToggleMetronomeDaddy = useCallback(() => {
+    setIsIconBouncing(true);
+    if (bounceTimeoutRef.current) clearTimeout(bounceTimeoutRef.current);
+    bounceTimeoutRef.current = window.setTimeout(() => {
+      setIsIconBouncing(false);
+      bounceTimeoutRef.current = null;
+    }, 420);
+
     if (!isHintDismissed) {
       setIsHintDismissed(true);
       try {
@@ -195,6 +212,39 @@ export const FrontDoorScreen: React.FC<FrontDoorScreenProps> = ({
     }
     onTogglePlay();
   }, [isHintDismissed, onTogglePlay]);
+
+  const handleApparatusWheel = useCallback(
+    (e: React.WheelEvent) => {
+      e.stopPropagation();
+      const rawDelta = Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : -e.deltaX;
+      if (rawDelta === 0) return;
+      const step = rawDelta < 0 ? 1 : -1;
+      onBpmChange((prev) => Math.max(MIN_BPM, Math.min(MAX_BPM, prev + step)));
+    },
+    [onBpmChange]
+  );
+
+  const handleCarouselWheel = useCallback(
+    (e: React.WheelEvent) => {
+      if (isModalOpen) return;
+
+      const dominantDelta = Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
+      if (Math.abs(dominantDelta) < 15) return;
+
+      const now = Date.now();
+      if (now - lastCarouselWheelTimeRef.current < CAROUSEL_WHEEL_COOLDOWN_MS) {
+        return;
+      }
+      lastCarouselWheelTimeRef.current = now;
+
+      if (dominantDelta > 0) {
+        goToNextCard();
+      } else {
+        goToPrevCard();
+      }
+    },
+    [isModalOpen, goToNextCard, goToPrevCard]
+  );
 
   // Smart Context Keyboard Shortcuts on Front Door
   useEffect(() => {
@@ -355,10 +405,12 @@ export const FrontDoorScreen: React.FC<FrontDoorScreenProps> = ({
 
   return (
     <div
+      data-testid="front-door-screen"
       style={{ paddingTop: 'var(--app-header-padding-top)' }}
       className="h-[100dvh] max-h-[100dvh] w-full overflow-hidden flex flex-col justify-between items-center bg-gradient-to-b from-neutral-950 via-neutral-900 to-black text-white select-none relative"
       onTouchStart={handleStageTouchStart}
       onTouchEnd={handleStageTouchEnd}
+      onWheel={handleCarouselWheel}
     >
       {/* Hidden state tracker for deterministic tests */}
       <div
@@ -428,18 +480,24 @@ export const FrontDoorScreen: React.FC<FrontDoorScreenProps> = ({
                 <div
                   data-testid="metronome-amber-ring"
                   aria-hidden="true"
-                  className={`absolute w-52 h-52 sm:w-64 sm:h-64 landscape:w-60 landscape:h-60 rounded-full border-[3px] border-amber-400/90 shadow-[0_0_55px_rgba(251,191,36,0.55),inset_0_0_35px_rgba(251,191,36,0.3)] transition-all duration-500 pointer-events-none ${
+                  onWheel={handleApparatusWheel}
+                  className={`absolute w-52 h-52 sm:w-64 sm:h-64 landscape:w-60 landscape:h-60 rounded-full border-[3px] border-amber-400/90 shadow-[0_0_55px_rgba(251,191,36,0.55),inset_0_0_35px_rgba(251,191,36,0.3)] transition-all duration-500 pointer-events-auto ${
                     isPlaying ? 'opacity-100 scale-100 animate-pulse' : 'opacity-0 scale-90'
                   }`}
                 />
 
                 {/* 2. Giant Beautiful Number Font BEHIND the metronome: matches full inner width of metronome card without cutoff */}
                 <div
-                  data-testid="hero-bpm-display"
-                  aria-label={`${bpm} BPM`}
-                  className="absolute inset-x-0 -top-6 sm:-top-8 landscape:-top-7 flex items-center justify-center text-center text-[clamp(7.5rem,24vw,14rem)] landscape:text-[clamp(6.5rem,18vw,11.5rem)] leading-none font-black font-mono tracking-tighter tabular-nums text-transparent bg-clip-text bg-gradient-to-b from-white via-amber-100/90 to-neutral-600/20 drop-shadow-[0_4px_24px_rgba(0,0,0,0.85)] pointer-events-none select-none z-0"
+                  className="absolute inset-x-0 -top-6 sm:-top-8 landscape:-top-7 flex items-center justify-center pointer-events-none select-none z-0"
                 >
-                  {bpm}
+                  <span
+                    data-testid="hero-bpm-display"
+                    aria-label={`${bpm} BPM`}
+                    onWheel={handleApparatusWheel}
+                    className="pointer-events-auto text-center text-[clamp(7.5rem,24vw,14rem)] landscape:text-[clamp(6.5rem,18vw,11.5rem)] leading-none font-black font-mono tracking-tighter tabular-nums text-transparent bg-clip-text bg-gradient-to-b from-white via-amber-100/90 to-neutral-600/20 drop-shadow-[0_4px_24px_rgba(0,0,0,0.85)]"
+                  >
+                    {bpm}
+                  </span>
                 </div>
 
                 {/* 3. Transparent Metronome w/ Golden Mustache (Tap directly to toggle) */}
@@ -447,14 +505,18 @@ export const FrontDoorScreen: React.FC<FrontDoorScreenProps> = ({
                   type="button"
                   data-testid="metronome-daddy-trigger"
                   onClick={handleToggleMetronomeDaddy}
+                  onWheel={handleApparatusWheel}
+                  onAnimationEnd={() => setIsIconBouncing(false)}
                   aria-label={isPlaying ? 'Stop Metronome Daddy' : 'Start Metronome Daddy'}
                   aria-pressed={isPlaying}
-                  className="relative z-10 mt-6 sm:mt-8 landscape:mt-6 rounded-3xl p-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 active:scale-95 transition-transform cursor-pointer group"
+                  className={`relative z-10 mt-6 sm:mt-8 landscape:mt-6 rounded-3xl p-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 cursor-pointer group transition-transform ${
+                    isIconBouncing ? 'animate-metronome-bounce' : 'active:scale-95'
+                  }`}
                 >
                   <MetronomeDaddyIcon
                     isPlaying={isPlaying}
                     bpm={bpm}
-                    className="w-40 h-40 sm:w-52 sm:h-52 landscape:w-48 landscape:h-48 drop-shadow-[0_14px_28px_rgba(0,0,0,0.85)] group-hover:scale-[1.02] transition-transform"
+                    className="w-40 h-40 sm:w-52 sm:h-52 landscape:w-48 landscape:h-48 drop-shadow-[0_14px_28px_rgba(0,0,0,0.85)] group-hover:scale-[1.06] transition-transform duration-200 ease-out"
                   />
                 </button>
               </div>
