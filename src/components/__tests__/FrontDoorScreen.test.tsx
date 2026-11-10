@@ -440,8 +440,8 @@ describe('FrontDoorScreen & Unified Front Door (AC1–AC8)', () => {
 
     // 3. Over amber ring
     const amberRing = screen.getByTestId('metronome-amber-ring');
-    expect(amberRing.className).toContain('w-[19rem]');
-    expect(amberRing.className).toContain('sm:w-[25rem]');
+    expect(amberRing.className).toContain('w-[20.5rem]');
+    expect(amberRing.className).toContain('sm:w-[26rem]');
     expect(amberRing.className).toContain('landscape:w-[23rem]');
     fireEvent.wheel(amberRing, { deltaY: -100 });
     expect(screen.getByTestId('hero-bpm-display').textContent).toBe('121');
@@ -478,5 +478,31 @@ describe('FrontDoorScreen & Unified Front Door (AC1–AC8)', () => {
     rerender(<TestHarness isModalOpen={true} />);
     fireEvent.wheel(frontDoorRoot, { deltaY: 100 });
     expect(screen.getByTestId('active-card-index').getAttribute('data-index')).toBe('0');
+  });
+
+  it('shifts BPM numerals left by 9px for 3-digit tempos (BPM >= 100) for visual centering', () => {
+    const { rerender } = render(
+      <FrontDoorScreen
+        bpm={99}
+        isPlaying={false}
+        onBpmChange={vi.fn()}
+        onTogglePlay={vi.fn()}
+        onEnterGym={vi.fn()}
+      />
+    );
+    const bpmDisplay99 = screen.getByTestId('hero-bpm-display');
+    expect(bpmDisplay99.parentElement?.className).not.toContain('-translate-x-[9px]');
+
+    rerender(
+      <FrontDoorScreen
+        bpm={100}
+        isPlaying={false}
+        onBpmChange={vi.fn()}
+        onTogglePlay={vi.fn()}
+        onEnterGym={vi.fn()}
+      />
+    );
+    const bpmDisplay100 = screen.getByTestId('hero-bpm-display');
+    expect(bpmDisplay100.parentElement?.className).toContain('-translate-x-[9px]');
   });
 });

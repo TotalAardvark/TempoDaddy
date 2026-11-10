@@ -14,17 +14,18 @@ As a user visiting the Tempo Daddy Front Door page (`/`):
 - [x] **AC1: BPM Number Font Scaling (+20% Scale & Sleek Display Sans Typography)**
   - Font family switched from `font-mono` to `font-sans font-black tracking-tighter tabular-nums` for sculpted, modern geometric display curves.
   - Font size clamp increased to `text-[clamp(11.5rem,38vw,22rem)] landscape:text-[clamp(10rem,28vw,18rem)]`.
-  - Layered in upper flex-1 apparatus zone (`top-1/2 -translate-y-[58%]`) so digits frame the metronome apex without clipping Card 0 top boundary.
+  - Shifted UP vertically (`-translate-y-[4.125rem] sm:-translate-y-[5.25rem] landscape:-translate-y-[3.75rem]`) to frame cleanly above the metronome.
+  - When BPM is 100 or greater (3 digits), shifted 9px to the left (`-translate-x-[9px]`) so visual weight of 3-digit numbers remains centered.
 
 - [x] **AC2: Metronome Daddy Icon Scaling (-10% Reduction for Optimal Proportions)**
   - Icon dimensions adjusted:
     - Mobile: `w-[15.75rem] h-[15.75rem]` (~252px).
     - Tablet / Desktop: `sm:w-[20.5rem] sm:h-[20.5rem]` (~328px).
     - Landscape: `landscape:w-[18.875rem] landscape:h-[18.875rem]` (~302px).
-  - Centered in upper flex apparatus zone to eliminate dead space above the thumbdial.
+  - Shifted DOWN vertically (`translate-y-[4.125rem] sm:translate-y-[5.25rem] landscape:translate-y-[3.75rem]`) by an equal distance to cleanly separate from the BPM numerals.
 
 - [x] **AC3: Proportional Amber Pulse Halo Scaling & Focus Ring Refinement**
-  - Amber halo ring centered with `top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2` and sized to `w-[19rem] h-[19rem] sm:w-[25rem] sm:h-[25rem] landscape:w-[23rem] landscape:h-[23rem]`.
+  - Amber halo ring centered with `top-1/2 left-1/2 -translate-x-1/2 -translate-y-[calc(50%+1.5rem)] sm:-translate-y-[calc(50%+2rem)] landscape:-translate-y-[calc(50%+1.25rem)]` and sized to `w-[20.5rem] h-[20.5rem] sm:w-[26rem] sm:h-[26rem] landscape:w-[23rem] landscape:h-[23rem]` to encompass the upward-shifted BPM numbers and upper metronome frame.
   - Trigger focus ring set to `rounded-full` to eliminate boxy squircle focus outlines.
 
 - [x] **AC4: Layout Balance & Equal ~8% Negative Space Architecture**

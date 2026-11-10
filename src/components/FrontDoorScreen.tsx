@@ -474,51 +474,59 @@ export const FrontDoorScreen: React.FC<FrontDoorScreenProps> = ({
               data-testid="metronome-daddy-card"
               className="pointer-events-auto w-[82%] sm:w-[76%] md:w-[68%] max-w-md landscape:max-w-xl landscape:w-[88%] min-h-[530px] sm:min-h-[620px] landscape:min-h-[520px] bg-neutral-900/95 border border-neutral-800/95 rounded-3xl p-6 sm:p-8 landscape:p-6 shadow-[0_25px_60px_rgba(0,0,0,0.85)] backdrop-blur-xl flex flex-col items-center justify-between overflow-hidden"
             >
-              {/* Upper Zone: Layered Metronome Icon + Giant Background BPM + Amber Ring centered with ~8% negative space on all sides */}
+              {/* Upper Zone: Layered Metronome Icon + Giant Background BPM + Amber Ring */}
               <div className="relative w-full flex-1 min-h-0 flex flex-col items-center justify-center my-auto">
-                {/* 1. Glowing Amber Confirmation Ring (Fades in when active) */}
+                {/* 1. Glowing Amber Confirmation Ring (Shifted slightly upward from center of mass, encompasses numbers) */}
                 <div
                   data-testid="metronome-amber-ring"
                   aria-hidden="true"
                   onWheel={handleApparatusWheel}
-                  className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[19rem] h-[19rem] sm:w-[25rem] sm:h-[25rem] landscape:w-[23rem] landscape:h-[23rem] rounded-full border-[3px] border-amber-400/90 shadow-[0_0_55px_rgba(251,191,36,0.55),inset_0_0_35px_rgba(251,191,36,0.3)] transition-all duration-500 pointer-events-auto ${
+                  className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[calc(50%+1.5rem)] sm:-translate-y-[calc(50%+2rem)] landscape:-translate-y-[calc(50%+1.25rem)] w-[20.5rem] h-[20.5rem] sm:w-[26rem] sm:h-[26rem] landscape:w-[23rem] landscape:h-[23rem] rounded-full border-[3px] border-amber-400/90 shadow-[0_0_55px_rgba(251,191,36,0.55),inset_0_0_35px_rgba(251,191,36,0.3)] transition-all duration-500 pointer-events-auto ${
                     isPlaying ? 'opacity-100 scale-100 animate-pulse' : 'opacity-0 scale-90'
                   }`}
                 />
 
-                {/* 2. Giant Beautiful Number Font BEHIND the metronome: sleek display sans typography */}
+                {/* 2. Giant Beautiful Number Font BEHIND the metronome: shifted UP (+50% more from previous) */}
                 <div
                   className="absolute inset-x-0 top-1/2 -translate-y-[58%] sm:-translate-y-[56%] flex items-center justify-center pointer-events-none select-none z-0"
                 >
-                  <span
-                    data-testid="hero-bpm-display"
-                    aria-label={`${bpm} BPM`}
-                    onWheel={handleApparatusWheel}
-                    className="pointer-events-auto text-center text-[clamp(11.5rem,38vw,22rem)] landscape:text-[clamp(10rem,28vw,18rem)] leading-none font-black font-sans tracking-tighter tabular-nums text-transparent bg-clip-text bg-gradient-to-b from-white via-amber-100/90 to-neutral-600/20 drop-shadow-[0_4px_24px_rgba(0,0,0,0.85)]"
+                  <div
+                    className={`-translate-y-[4.125rem] sm:-translate-y-[5.25rem] landscape:-translate-y-[3.75rem] flex items-center justify-center ${
+                      bpm >= 100 ? '-translate-x-[9px]' : ''
+                    }`}
                   >
-                    {bpm}
-                  </span>
+                    <span
+                      data-testid="hero-bpm-display"
+                      aria-label={`${bpm} BPM`}
+                      onWheel={handleApparatusWheel}
+                      className="pointer-events-auto text-center text-[clamp(11.5rem,38vw,22rem)] landscape:text-[clamp(10rem,28vw,18rem)] leading-none font-black font-sans tracking-tighter tabular-nums text-transparent bg-clip-text bg-gradient-to-b from-white via-amber-100/90 to-neutral-600/20 drop-shadow-[0_4px_24px_rgba(0,0,0,0.85)]"
+                    >
+                      {bpm}
+                    </span>
+                  </div>
                 </div>
 
-                {/* 3. Transparent Metronome w/ Golden Mustache (Tap directly to toggle) */}
-                <button
-                  type="button"
-                  data-testid="metronome-daddy-trigger"
-                  onClick={handleToggleMetronomeDaddy}
-                  onWheel={handleApparatusWheel}
-                  onAnimationEnd={() => setIsIconBouncing(false)}
-                  aria-label={isPlaying ? 'Stop Metronome Daddy' : 'Start Metronome Daddy'}
-                  aria-pressed={isPlaying}
-                  className={`relative z-10 rounded-full p-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-900 cursor-pointer group transition-transform ${
-                    isIconBouncing ? 'animate-metronome-bounce' : 'active:scale-95'
-                  }`}
-                >
-                  <MetronomeDaddyIcon
-                    isPlaying={isPlaying}
-                    bpm={bpm}
-                    className="w-[15.75rem] h-[15.75rem] sm:w-[20.5rem] sm:h-[20.5rem] landscape:w-[18.875rem] landscape:h-[18.875rem] drop-shadow-[0_14px_28px_rgba(0,0,0,0.85)] group-hover:scale-[1.06] transition-transform duration-200 ease-out"
-                  />
-                </button>
+                {/* 3. Transparent Metronome w/ Golden Mustache: shifted DOWN (+50% more from previous) */}
+                <div className="translate-y-[4.125rem] sm:translate-y-[5.25rem] landscape:translate-y-[3.75rem] flex items-center justify-center">
+                  <button
+                    type="button"
+                    data-testid="metronome-daddy-trigger"
+                    onClick={handleToggleMetronomeDaddy}
+                    onWheel={handleApparatusWheel}
+                    onAnimationEnd={() => setIsIconBouncing(false)}
+                    aria-label={isPlaying ? 'Stop Metronome Daddy' : 'Start Metronome Daddy'}
+                    aria-pressed={isPlaying}
+                    className={`relative z-10 rounded-full p-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-900 cursor-pointer group transition-transform ${
+                      isIconBouncing ? 'animate-metronome-bounce' : 'active:scale-95'
+                    }`}
+                  >
+                    <MetronomeDaddyIcon
+                      isPlaying={isPlaying}
+                      bpm={bpm}
+                      className="w-[15.75rem] h-[15.75rem] sm:w-[20.5rem] sm:h-[20.5rem] landscape:w-[18.875rem] landscape:h-[18.875rem] drop-shadow-[0_14px_28px_rgba(0,0,0,0.85)] group-hover:scale-[1.06] transition-transform duration-200 ease-out"
+                    />
+                  </button>
+                </div>
               </div>
 
               {/* Lower Zone: Non-moving thumbdial + hint anchored at bottom */}
