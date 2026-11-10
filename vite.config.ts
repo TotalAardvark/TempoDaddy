@@ -8,6 +8,7 @@ export default defineConfig({
   base: '/TempoDaddy/',
   server: {
     host: true,
+    port: 5174,
   },
   plugins: [
     react(),
