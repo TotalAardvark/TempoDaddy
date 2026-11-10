@@ -148,8 +148,8 @@ export default function App() {
   // Active skill in view
   const currentSkill: Skill | undefined = activeSkills[activeSkillIndex] || activeSkills[0] || skills[0];
 
-  // Metronome state (defaults to 67 BPM on the Front Door; loadSkill sets warmup BPM on workout start)
-  const [bpm, setBpm] = useState<number>(67);
+  // Metronome state (defaults to remembered front door setting or 67 BPM; loadSkill sets warmup BPM on workout start)
+  const [bpm, setBpm] = useState<number>(() => storageManager.getFrontDoorBpm());
   const [startingBpm, setStartingBpm] = useState<number>(() => {
     const settings = storageManager.getTempoRampSettings();
     return currentSkill ? Math.round(currentSkill.personalBestBpm * (settings.startPercent / 100)) : 80;
@@ -267,8 +267,14 @@ export default function App() {
       rampStateRef.current.active = false;
       setIsRampActive(false);
     }
-    setBpm(newBpm);
-  }, []);
+    setBpm((prev) => {
+      const next = typeof newBpm === 'function' ? newBpm(prev) : newBpm;
+      if (isColdStart) {
+        storageManager.saveFrontDoorBpm(next);
+      }
+      return next;
+    });
+  }, [isColdStart]);
   // Load a skill into the metronome player & initiate configurable tempo ramp
   const loadSkill = (skill: Skill, autoPlay = true) => {
     const warmup = Math.round(skill.personalBestBpm * (tempoRampSettings.startPercent / 100));

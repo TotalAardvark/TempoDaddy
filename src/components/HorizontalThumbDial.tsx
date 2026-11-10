@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { MIN_BPM, MAX_BPM } from '../types';
 
 interface HorizontalThumbDialProps {
@@ -24,6 +24,23 @@ export const HorizontalThumbDial: React.FC<HorizontalThumbDialProps> = ({ bpm, o
   });
 
   const clampBpm = (val: number) => Math.max(MIN_BPM, Math.min(MAX_BPM, Math.round(val)));
+
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const handleWindowPointerUp = () => {
+      if (!dragStateRef.current.active) return;
+      dragStateRef.current.active = false;
+      setIsDragging(false);
+    };
+
+    window.addEventListener('pointerup', handleWindowPointerUp);
+    window.addEventListener('pointercancel', handleWindowPointerUp);
+    return () => {
+      window.removeEventListener('pointerup', handleWindowPointerUp);
+      window.removeEventListener('pointercancel', handleWindowPointerUp);
+    };
+  }, [isDragging]);
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     e.stopPropagation();

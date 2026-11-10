@@ -3,20 +3,10 @@ import {
   ChevronUp,
   ChevronLeft,
   ChevronRight,
-  Trophy,
-  Flame,
-  ListMusic,
-  StickyNote,
-  Share2,
-  Sparkles,
-  BookOpenCheck,
-  TrendingUp,
-  Keyboard,
 } from 'lucide-react';
-import { MIN_BPM, MAX_BPM, type PracticeSessionLog } from '../types';
+import { MIN_BPM, MAX_BPM } from '../types';
 import { MetronomeDaddyIcon } from './MetronomeDaddyIcon';
 import { HorizontalThumbDial } from './HorizontalThumbDial';
-import { TealProgressGraph } from './TealProgressGraph';
 
 export const METRONOME_HINT_STORAGE_KEY = 'tempo_daddy_metronome_hint_dismissed';
 
@@ -36,222 +26,81 @@ interface TourCardDef {
   headline: string;
   quote: string;
   subtext: string;
-  renderVisual: () => React.ReactNode;
+  renderVisual?: () => React.ReactNode;
 }
-
-const DEMO_GRAPH_HISTORY: PracticeSessionLog[] = [
-  { id: 'd1', skillId: 'demo', date: '2026-10-20T10:00:00.000Z', bpm: 94, durationSeconds: 180, isPersonalBest: true },
-  { id: 'd2', skillId: 'demo', date: '2026-10-22T10:00:00.000Z', bpm: 98, durationSeconds: 210, isPersonalBest: true },
-  { id: 'd3', skillId: 'demo', date: '2026-10-25T10:00:00.000Z', bpm: 102, durationSeconds: 150, isPersonalBest: true },
-  { id: 'd4', skillId: 'demo', date: '2026-10-28T10:00:00.000Z', bpm: 105, durationSeconds: 240, isPersonalBest: true },
-  { id: 'd5', skillId: 'demo', date: '2026-11-01T10:00:00.000Z', bpm: 111, durationSeconds: 190, isPersonalBest: true },
-  { id: 'd6', skillId: 'demo', date: '2026-11-04T10:00:00.000Z', bpm: 116, durationSeconds: 300, isPersonalBest: true },
-  { id: 'd7', skillId: 'demo', date: '2026-11-07T10:00:00.000Z', bpm: 122, durationSeconds: 220, isPersonalBest: true },
-  { id: 'd8', skillId: 'demo', date: '2026-11-09T10:00:00.000Z', bpm: 128, durationSeconds: 260, isPersonalBest: true },
-];
 
 const TOUR_CARDS: TourCardDef[] = [
   {
     id: 'cognitive-gym',
-    badge: 'BEAT 01 • THE BRAIN GYM',
+    badge: 'BEAT 01/07',
     shortLabel: 'Brain Gym',
     headline: 'Your Nervous System’s Favorite Weight Room.',
     quote:
-      '“Hey champion. Let Daddy let you in on a little secret: getting ridiculously good at complex motor skills isn’t a mystical gift—it’s progressive cognitive conditioning, and it feels damn good when you do it right.”',
+      '“Hey champion. Let me let you in on a little secret: getting ridiculously good isn\'t magic. It\'s just progressive cognitive conditioning, and it feels damn good when you do it right.”',
     subtext:
-      'Backed by motor-learning research and pro musicians, Tempo Daddy turns intimidating barriers into relaxing, effortless flow states. You bring the curiosity; Daddy handles the cognitive load.',
-    renderVisual: () => (
-      <div className="w-full bg-neutral-950/90 border border-neutral-800/90 rounded-2xl p-4 shadow-inner">
-        <div className="flex items-center justify-between text-[11px] font-mono uppercase tracking-wider text-neutral-400 mb-3">
-          <span className="flex items-center gap-1.5 text-amber-400 font-bold">
-            <Sparkles className="w-3.5 h-3.5" /> Progressive Cognitive Loading
-          </span>
-          <span className="text-emerald-400">Relaxed Flow State</span>
-        </div>
-        <div className="space-y-2.5">
-          <div className="flex items-center justify-between text-xs bg-neutral-900/90 border border-neutral-800 rounded-xl px-3 py-2">
-            <span className="text-neutral-400">Old Metronomes</span>
-            <span className="font-mono text-rose-400">Cold Parole Officer 😤</span>
-          </div>
-          <div className="flex items-center justify-between text-xs bg-amber-500/10 border border-amber-500/30 rounded-xl px-3 py-2.5">
-            <span className="text-amber-200 font-semibold">The Tempo Daddy Method</span>
-            <span className="font-mono text-amber-400 font-bold">80% Warmup → PR Flow 🧠⚡</span>
-          </div>
-        </div>
-      </div>
-    ),
+      'You bring the curiosity; Daddy handles the planning and note taking.',
   },
   {
     id: 'gym-notebook',
-    badge: 'BEAT 02 • ZERO INITIATION FATIGUE',
+    badge: 'BEAT 02/07',
     shortLabel: 'Gym Logbook',
     headline: 'Leave the Crumpled Notebook in Your Bag.',
     quote:
-      '“What BPM did you leave off on last Tuesday? Who cares—Daddy already wrote it down. No hunting for a pencil, no setup dread, no mental math. Just press start and go.”',
+      '“What BPM did you leave off on last Tuesday? Who cares—Daddy already wrote it down. Just press start.”',
     subtext:
-      'Every exercise remembers your exact Personal Best, subdivision, and warmup ramp automatically so starting a session takes zero willpower.',
-    renderVisual: () => (
-      <div className="w-full bg-neutral-950/90 border border-neutral-800/90 rounded-2xl p-4 shadow-inner space-y-2.5">
-        <div className="flex items-center justify-between text-[11px] font-mono text-neutral-400 uppercase">
-          <span className="flex items-center gap-1.5 text-cyan-300 font-bold">
-            <BookOpenCheck className="w-3.5 h-3.5" /> Auto-Logged Setbook
-          </span>
-          <span className="text-amber-400">Ready in 1 Tap</span>
-        </div>
-        <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-3 flex items-center justify-between">
-          <div>
-            <div className="text-sm font-bold text-white">6-Stroke Roll Inversions</div>
-            <div className="text-xs font-mono text-neutral-400 mt-0.5">
-              Auto-Warmup: <span className="text-amber-400 font-bold">102 BPM</span> → Target{' '}
-              <span className="text-cyan-300 font-bold">128 BPM</span>
-            </div>
-          </div>
-          <div className="px-2.5 py-1 rounded-lg bg-amber-400 text-neutral-950 font-extrabold text-xs">
-            GO
-          </div>
-        </div>
-      </div>
-    ),
+      'Every exercise remembers your stats and preferences so you can jump right in.',
   },
   {
     id: 'progress-charts',
-    badge: 'BEAT 03 • VISUAL VELOCITY',
+    badge: 'BEAT 03/07',
     shortLabel: 'Progress Charts',
     headline: 'Progress Charts That Freaking Rule.',
     quote:
-      '“Day-to-day progress is almost impossible to feel when you’re in the trenches. Seeing your neural velocity graphed out across weeks of micro-sessions? Pure magic, baby.”',
+      '“Day-to-day progress is hard to feel. Seeing your neural velocity graphed out for you? Pure magic, baby.”',
     subtext:
-      'Our signature Teal Progress Charts turn invisible nervous-system adaptation into an undeniable upward climb you can inspect anytime.',
-    renderVisual: () => (
-      <div className="w-full bg-neutral-950/90 border border-cyan-500/30 rounded-2xl p-4 shadow-[0_0_25px_rgba(34,211,238,0.1)]">
-        <div className="flex items-center justify-between mb-2">
-          <div>
-            <div className="text-xs font-mono uppercase tracking-wider text-cyan-400 flex items-center gap-1.5 font-bold">
-              <TrendingUp className="w-3.5 h-3.5" /> Lifetime Velocity Graph
-            </div>
-            <div className="text-sm font-extrabold text-white mt-0.5">Herta Sweep Arpeggio</div>
-          </div>
-          <span className="px-2 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-400/40 text-cyan-300 font-mono text-xs font-bold">
-            +34 BPM Gain
-          </span>
-        </div>
-        <div className="flex justify-center pt-1">
-          <TealProgressGraph
-            history={DEMO_GRAPH_HISTORY}
-            personalBestBpm={128}
-            startingBpm={94}
-            width={220}
-            height={68}
-            showLabels={true}
-            interactive={false}
-          />
-        </div>
-      </div>
-    ),
+      'Our signature Progress Charts turns progress into an undeniable upward climb.',
   },
   {
     id: 'plus-one-trophy',
-    badge: 'BEAT 04 • THE DOPAMINE ENGINE',
+    badge: 'BEAT 04/07',
     shortLabel: '+1 Trophies',
     headline: '+1 BPM Gets a Trophy. Every Single Time.',
     quote:
-      '“Nudge your personal best up by a single beat per minute and Daddy pops the gold hardware—because THAT is what we reward ourselves for if we want durable, persistent long-term change.”',
+      '“Even a 1 bpm improvement gets a trophy—because THAT is what we reward ourselves for if we want durable long-term change.”',
     subtext:
       'Your brain wires habits around immediate positive reinforcement. Celebrating micro-PRs turns discipline into an addictive game.',
-    renderVisual: () => (
-      <div className="w-full bg-neutral-950/90 border border-amber-500/30 rounded-2xl p-4 flex items-center justify-between gap-3 shadow-[0_0_24px_rgba(251,191,36,0.12)]">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-300 via-amber-400 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/30 shrink-0">
-            <Trophy className="w-6 h-6 text-neutral-950 fill-neutral-950" />
-          </div>
-          <div>
-            <div className="text-xs font-mono uppercase tracking-wider text-amber-400 font-bold">
-              NEW PERSONAL BEST!
-            </div>
-            <div className="text-base font-extrabold text-white">120 → 121 BPM (+1)</div>
-            <div className="text-[11px] text-neutral-400">Micro-gains compound into mastery</div>
-          </div>
-        </div>
-      </div>
-    ),
   },
   {
     id: 'streak-calendar',
-    badge: 'BEAT 05 • CONSISTENCY OVER BURNOUT',
-    shortLabel: '2-Min Streaks',
-    headline: 'Two Minutes Counts. Showing Up Is What Matters.',
+    badge: 'BEAT 05/07',
+    shortLabel: '1-Min Streaks',
+    headline: 'One Minute Counts. Showing Up Is What Matters.',
     quote:
-      '“Don’t have an hour today? Don’t sweat it, tiger. Our compact streak calendar lights up even if you lock in for just 2 minutes. Showing up is the whole damn game.”',
+      '“Don’t have an hour today? Don’t sweat it, tiger - one minute is fine. Showing up is the whole damn game.”',
     subtext:
-      'Keep your chain unbroken on busy days with a quick two-minute warmup set. Zero guilt, 100% momentum.',
-    renderVisual: () => (
-      <div className="w-full bg-neutral-950/90 border border-neutral-800/90 rounded-2xl p-4">
-        <div className="flex items-center justify-between mb-2.5">
-          <span className="text-xs font-bold text-white flex items-center gap-1.5">
-            <Flame className="w-4 h-4 text-amber-400 fill-amber-400" /> 14-Day Momentum Streak
-          </span>
-          <span className="text-[11px] font-mono text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-full">
-            2 min = ✓
-          </span>
-        </div>
-        <div className="grid grid-cols-7 gap-1.5">
-          {Array.from({ length: 14 }).map((_, idx) => (
-            <div
-              key={idx}
-              className="h-6 rounded-md bg-amber-400/20 border border-amber-400/50 flex items-center justify-center text-[10px] font-mono font-bold text-amber-300"
-            >
-              ✓
-            </div>
-          ))}
-        </div>
-      </div>
-    ),
+      'Keep your chain unbroken on busy days with a quick one-minute warmup set. Zero guilt, 100% momentum.',
   },
   {
     id: 'playlists-notes-share',
-    badge: 'BEAT 06 • CURATE & SHARE THE GAINS',
+    badge: 'BEAT 06/07',
     shortLabel: 'Playlists & Share',
     headline: 'Playlists, Sticky Notes & 1-Link Sharing.',
     quote:
-      '“Split your routines into custom playlists, pin coaching cues right onto specific exercises, and beam your workouts to students, bandmates, and disinterested strangers!”',
+      '“Create custom playlists, pin notes, and share your workouts to students, bandmates, and disinterested strangers!”',
     subtext:
-      'Switch effortlessly between morning warmups, speed sets, or teaching curricula—with instant QR and URL routine sharing.',
-    renderVisual: () => (
-      <div className="w-full bg-neutral-950/90 border border-neutral-800/90 rounded-2xl p-3.5 space-y-2">
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-400 text-neutral-950 text-[11px] font-extrabold">
-            <ListMusic className="w-3 h-3" /> Morning Chops
-          </span>
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-neutral-900 border border-neutral-800 text-neutral-300 text-[11px] font-semibold">
-            Legato Gym
-          </span>
-          <span className="ml-auto inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 text-[11px] font-mono">
-            <Share2 className="w-3 h-3" /> QR / Link
-          </span>
-        </div>
-        <div className="bg-amber-500/10 border border-amber-500/25 rounded-xl p-2.5 flex items-start gap-2">
-          <StickyNote className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-          <div className="text-xs text-amber-100/90">
-            <span className="font-bold text-amber-300">Exercise Note:</span> Keep Pinky relaxed on beat 3 turnaround; breathe out on downbeat.
-          </div>
-        </div>
-      </div>
-    ),
+      'Switch between morning warmups, speed sets, or teaching plans; with instant QR and URL playlist sharing.',
   },
   {
     id: 'keyboard-shortcuts',
-    badge: 'BEAT 07 • HANDS-FREE CHOPS GOD MODE',
+    badge: 'BEAT 07/07',
     shortLabel: 'Shortcuts',
-    headline: 'Barely Touch Your Device. Just Shred.',
+    headline: 'Hands on your instrument, not your phone.',
     quote:
-      '“Taking your hands off your instrument to poke at a glass screen kills the groove. Daddy wired every control to fast tactile hotkeys so you can focus on turning into a chops god.”',
+      '“Don\'t stop the groove. Move quickly with fast keyboard shortcuts and easy tap commands.”',
     subtext:
       'Tap Space to start or pause, Double-Space to log your set and auto-advance, and Left/Right arrows or +/- to nudge BPM (hold for turbo steps).',
     renderVisual: () => (
       <div className="w-full bg-neutral-950/90 border border-neutral-800/90 rounded-2xl p-3.5">
-        <div className="flex items-center gap-1.5 text-[11px] font-mono uppercase tracking-wider text-amber-400 font-bold mb-2.5">
-          <Keyboard className="w-3.5 h-3.5" /> Zero-Look Hotkeys
-        </div>
         <div className="grid grid-cols-3 gap-2 text-center">
           <div className="bg-neutral-900 border border-neutral-700/80 rounded-xl p-2 shadow-sm">
             <kbd className="inline-block px-2 py-0.5 rounded bg-neutral-800 border border-neutral-600 text-[11px] font-mono font-bold text-white mb-1">
@@ -288,6 +137,7 @@ export const FrontDoorScreen: React.FC<FrontDoorScreenProps> = ({
   isModalOpen = false,
 }) => {
   const [activeCardIndex, setActiveCardIndex] = useState<number>(0);
+  const [slideDirection, setSlideDirection] = useState<'next' | 'prev'>('next');
   const [isHintDismissed, setIsHintDismissed] = useState<boolean>(() => {
     try {
       return localStorage.getItem(METRONOME_HINT_STORAGE_KEY) === 'true';
@@ -296,7 +146,24 @@ export const FrontDoorScreen: React.FC<FrontDoorScreenProps> = ({
     }
   });
 
+  const [isPhoneAspect, setIsPhoneAspect] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return window.innerHeight > window.innerWidth && window.innerWidth < 640;
+  });
+
   const lastBpmKeyRef = useRef<{ key: string; time: number }>({ key: '', time: 0 });
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsPhoneAspect(window.innerHeight > window.innerWidth && window.innerWidth < 640);
+    };
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('orientationchange', handleResize);
+    };
+  }, []);
   const stageSwipeRef = useRef<{ startX: number; startY: number; active: boolean }>({
     startX: 0,
     startY: 0,
@@ -308,10 +175,12 @@ export const FrontDoorScreen: React.FC<FrontDoorScreenProps> = ({
   });
 
   const goToNextCard = useCallback(() => {
+    setSlideDirection('next');
     setActiveCardIndex((prev) => (prev + 1) % TOTAL_CARDS);
   }, []);
 
   const goToPrevCard = useCallback(() => {
+    setSlideDirection('prev');
     setActiveCardIndex((prev) => (prev - 1 + TOTAL_CARDS) % TOTAL_CARDS);
   }, []);
 
@@ -330,6 +199,15 @@ export const FrontDoorScreen: React.FC<FrontDoorScreenProps> = ({
   // Smart Context Keyboard Shortcuts on Front Door
   useEffect(() => {
     if (isModalOpen) return;
+
+    const getBpmStep = (directionKey: '+' | '-', repeat: boolean): number => {
+      const now = Date.now();
+      const isRapid =
+        repeat ||
+        (lastBpmKeyRef.current.key === directionKey && now - lastBpmKeyRef.current.time < 120);
+      lastBpmKeyRef.current = { key: directionKey, time: now };
+      return isRapid ? 3 : 1;
+    };
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (
@@ -350,22 +228,14 @@ export const FrontDoorScreen: React.FC<FrontDoorScreenProps> = ({
 
       if (e.key === '+' || e.key === '=') {
         e.preventDefault();
-        const now = Date.now();
-        const isRapid =
-          e.repeat || (lastBpmKeyRef.current.key === '+' && now - lastBpmKeyRef.current.time < 120);
-        lastBpmKeyRef.current = { key: '+', time: now };
-        const step = isRapid ? 3 : 1;
+        const step = getBpmStep('+', e.repeat);
         onBpmChange((prev) => Math.min(MAX_BPM, prev + step));
         return;
       }
 
       if (e.key === '-' || e.key === '_') {
         e.preventDefault();
-        const now = Date.now();
-        const isRapid =
-          e.repeat || (lastBpmKeyRef.current.key === '-' && now - lastBpmKeyRef.current.time < 120);
-        lastBpmKeyRef.current = { key: '-', time: now };
-        const step = isRapid ? 3 : 1;
+        const step = getBpmStep('-', e.repeat);
         onBpmChange((prev) => Math.max(MIN_BPM, prev - step));
         return;
       }
@@ -373,11 +243,7 @@ export const FrontDoorScreen: React.FC<FrontDoorScreenProps> = ({
       if (e.key === 'ArrowRight') {
         e.preventDefault();
         if (isPlaying) {
-          const now = Date.now();
-          const isRapid =
-            e.repeat || (lastBpmKeyRef.current.key === '+' && now - lastBpmKeyRef.current.time < 120);
-          lastBpmKeyRef.current = { key: '+', time: now };
-          const step = isRapid ? 3 : 1;
+          const step = getBpmStep('+', e.repeat);
           onBpmChange((prev) => Math.min(MAX_BPM, prev + step));
         } else {
           goToNextCard();
@@ -388,11 +254,7 @@ export const FrontDoorScreen: React.FC<FrontDoorScreenProps> = ({
       if (e.key === 'ArrowLeft') {
         e.preventDefault();
         if (isPlaying) {
-          const now = Date.now();
-          const isRapid =
-            e.repeat || (lastBpmKeyRef.current.key === '-' && now - lastBpmKeyRef.current.time < 120);
-          lastBpmKeyRef.current = { key: '-', time: now };
-          const step = isRapid ? 3 : 1;
+          const step = getBpmStep('-', e.repeat);
           onBpmChange((prev) => Math.max(MIN_BPM, prev - step));
         } else {
           goToPrevCard();
@@ -486,6 +348,11 @@ export const FrontDoorScreen: React.FC<FrontDoorScreenProps> = ({
     );
   };
 
+  // Determine whether side peeking paddles should show in the stage margins
+  // On phone aspect ratio, side paddles are hidden on tour cards (activeCardIndex !== 0)
+  // to eliminate edge bleed-through and give tour text full breathing room.
+  const showSidePaddles = activeCardIndex === 0 || !isPhoneAspect;
+
   return (
     <div
       style={{ paddingTop: 'var(--app-header-padding-top)' }}
@@ -518,52 +385,59 @@ export const FrontDoorScreen: React.FC<FrontDoorScreenProps> = ({
 
       {/* Center Wide Carousel Stage with Peeking Left & Right Neighbor Cards + Below-Card Pagination Pill */}
       <main className="relative w-full flex-1 flex flex-col items-center justify-center px-4 sm:px-12 overflow-hidden">
-        {/* Left Peeking Neighbor Card (fades in from left edge with real content preview) */}
-        <button
-          type="button"
-          data-testid="peek-prev-card"
-          onClick={goToPrevCard}
-          aria-label={`Previous card: ${getCardShortTitle(prevCardIndex)}`}
-          style={{
-            WebkitMaskImage:
-              'linear-gradient(to right, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.65) 48%, rgba(0,0,0,1) 100%)',
-            maskImage:
-              'linear-gradient(to right, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.65) 48%, rgba(0,0,0,1) 100%)',
-          }}
-          className="group absolute -left-6 sm:-left-8 top-1/2 -translate-y-1/2 w-28 sm:w-56 landscape:w-64 h-80 sm:h-96 landscape:h-72 rounded-3xl bg-neutral-900/75 hover:bg-neutral-800/85 border border-neutral-800/90 hover:border-amber-500/45 backdrop-blur-sm flex flex-col justify-between items-end pl-8 pr-3.5 sm:pl-12 sm:pr-5 py-6 transition-all duration-300 opacity-75 hover:opacity-100 hover:translate-x-1 cursor-pointer z-10 shadow-xl"
-        >
-          <div className="flex items-center gap-1 text-amber-400/80 group-hover:text-amber-300 transition">
-            <ChevronLeft className="w-4 h-4 shrink-0" />
-            <span className="text-[10px] font-mono uppercase tracking-wider">Prev</span>
-          </div>
-          {renderPeekCardContent(prevCardIndex, 'left')}
-          <div className="w-6 h-0.5 rounded-full bg-neutral-700 group-hover:bg-amber-400/60 transition" />
-        </button>
+        {/* Left Peeking Neighbor Card: Always visible on tablet/desktop and on Metronome card; hidden on phone tour cards */}
+        {showSidePaddles && (
+          <button
+            type="button"
+            data-testid="peek-prev-card"
+            onClick={goToPrevCard}
+            aria-label={`Previous card: ${getCardShortTitle(prevCardIndex)}`}
+            style={{
+              WebkitMaskImage:
+                'linear-gradient(to right, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.65) 48%, rgba(0,0,0,1) 100%)',
+              maskImage:
+                'linear-gradient(to right, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.65) 48%, rgba(0,0,0,1) 100%)',
+            }}
+            className="group absolute -left-6 sm:-left-8 top-1/2 -translate-y-1/2 w-28 sm:w-56 landscape:w-64 h-80 sm:h-96 landscape:h-72 rounded-3xl bg-neutral-900/90 hover:bg-neutral-850 border border-neutral-800/90 hover:border-amber-500/45 backdrop-blur-md flex flex-col justify-between items-end pl-8 pr-3.5 sm:pl-12 sm:pr-5 py-6 transition-all duration-300 opacity-75 hover:opacity-100 hover:translate-x-1 cursor-pointer z-10 shadow-xl"
+          >
+            <div className="flex items-center gap-1 text-amber-400/80 group-hover:text-amber-300 transition">
+              <ChevronLeft className="w-4 h-4 shrink-0" />
+              <span className="text-[10px] font-mono uppercase tracking-wider">Prev</span>
+            </div>
+            {renderPeekCardContent(prevCardIndex, 'left')}
+            <div className="w-6 h-0.5 rounded-full bg-neutral-700 group-hover:bg-amber-400/60 transition" />
+          </button>
+        )}
 
         {/* Active Center Stage Card */}
-        <div className="w-full flex items-center justify-center z-20 my-auto pointer-events-none">
+        <div
+          key={activeCardIndex}
+          className={`w-full flex items-center justify-center z-20 my-auto pointer-events-none ${
+            slideDirection === 'next' ? 'animate-card-shuffle-next' : 'animate-card-shuffle-prev'
+          }`}
+        >
           {activeCardIndex === 0 ? (
-            /* CARD 0: METRONOME DADDY (50% taller, narrower card so side drawers peek clearly) */
+            /* CARD 0: METRONOME DADDY (Substantial landscape depth, rich opacity, no bleed-through) */
             <div
               data-testid="metronome-daddy-card"
-              className="pointer-events-auto w-[74%] max-w-[300px] sm:max-w-[340px] landscape:max-w-[310px] min-h-[420px] sm:min-h-[500px] landscape:min-h-[350px] bg-neutral-900/80 border border-neutral-800/90 rounded-3xl px-6 py-12 sm:px-10 sm:py-16 landscape:px-8 landscape:py-8 shadow-[0_20px_50px_rgba(0,0,0,0.75)] backdrop-blur-md flex flex-col items-center justify-between"
+              className="pointer-events-auto w-[82%] sm:w-[76%] md:w-[68%] max-w-md landscape:max-w-3xl landscape:w-[88%] min-h-[530px] sm:min-h-[620px] landscape:min-h-[520px] bg-neutral-900/95 border border-neutral-800/95 rounded-3xl p-6 sm:p-10 landscape:py-10 shadow-[0_25px_60px_rgba(0,0,0,0.85)] backdrop-blur-xl flex flex-col items-center justify-between overflow-hidden"
             >
               {/* Layered Metronome Icon + Giant Background BPM + Glowing Amber Ring */}
-              <div className="relative flex flex-col items-center justify-center my-auto pt-4 sm:pt-6 landscape:pt-3">
+              <div className="relative w-full flex flex-col items-center justify-center my-auto pt-6 sm:pt-10 landscape:pt-6">
                 {/* 1. Glowing Amber Confirmation Ring (Fades in when active) */}
                 <div
                   data-testid="metronome-amber-ring"
                   aria-hidden="true"
-                  className={`absolute w-52 h-52 sm:w-60 sm:h-60 landscape:w-48 landscape:h-48 rounded-full border-[3px] border-amber-400/90 shadow-[0_0_55px_rgba(251,191,36,0.55),inset_0_0_35px_rgba(251,191,36,0.3)] transition-all duration-500 pointer-events-none ${
+                  className={`absolute w-52 h-52 sm:w-64 sm:h-64 landscape:w-60 landscape:h-60 rounded-full border-[3px] border-amber-400/90 shadow-[0_0_55px_rgba(251,191,36,0.55),inset_0_0_35px_rgba(251,191,36,0.3)] transition-all duration-500 pointer-events-none ${
                     isPlaying ? 'opacity-100 scale-100 animate-pulse' : 'opacity-0 scale-90'
                   }`}
                 />
 
-                {/* 2. Giant Beautiful Number Font BEHIND the metronome (lowered slightly & doubled in scale) */}
+                {/* 2. Giant Beautiful Number Font BEHIND the metronome: matches full inner width of metronome card without cutoff */}
                 <div
                   data-testid="hero-bpm-display"
                   aria-label={`${bpm} BPM`}
-                  className="absolute -top-2 sm:-top-3 landscape:-top-2 text-[10.5rem] sm:text-[13rem] landscape:text-[10rem] leading-none font-black font-mono tracking-tighter tabular-nums text-transparent bg-clip-text bg-gradient-to-b from-white via-amber-100/90 to-neutral-600/20 drop-shadow-[0_4px_24px_rgba(0,0,0,0.85)] pointer-events-none select-none z-0"
+                  className="absolute inset-x-0 -top-6 sm:-top-8 landscape:-top-7 flex items-center justify-center text-center text-[clamp(7.5rem,24vw,14rem)] landscape:text-[clamp(6.5rem,18vw,11.5rem)] leading-none font-black font-mono tracking-tighter tabular-nums text-transparent bg-clip-text bg-gradient-to-b from-white via-amber-100/90 to-neutral-600/20 drop-shadow-[0_4px_24px_rgba(0,0,0,0.85)] pointer-events-none select-none z-0"
                 >
                   {bpm}
                 </div>
@@ -575,17 +449,17 @@ export const FrontDoorScreen: React.FC<FrontDoorScreenProps> = ({
                   onClick={handleToggleMetronomeDaddy}
                   aria-label={isPlaying ? 'Stop Metronome Daddy' : 'Start Metronome Daddy'}
                   aria-pressed={isPlaying}
-                  className="relative z-10 mt-6 sm:mt-8 landscape:mt-5 rounded-3xl p-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 active:scale-95 transition-transform cursor-pointer group"
+                  className="relative z-10 mt-6 sm:mt-8 landscape:mt-6 rounded-3xl p-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 active:scale-95 transition-transform cursor-pointer group"
                 >
                   <MetronomeDaddyIcon
                     isPlaying={isPlaying}
                     bpm={bpm}
-                    className="w-40 h-40 sm:w-48 sm:h-48 landscape:w-36 landscape:h-36 drop-shadow-[0_14px_28px_rgba(0,0,0,0.85)] group-hover:scale-[1.02] transition-transform"
+                    className="w-40 h-40 sm:w-52 sm:h-52 landscape:w-48 landscape:h-48 drop-shadow-[0_14px_28px_rgba(0,0,0,0.85)] group-hover:scale-[1.02] transition-transform"
                   />
                 </button>
               </div>
 
-              <div className="w-full flex flex-col items-center pt-2">
+              <div className="w-full flex flex-col items-center pt-4 pb-2">
                 {/* Non-clickable "Tap to start metronome" hint (fades & disappears forever after 1st tap) */}
                 <div className="h-5 flex items-center justify-center mb-3 pointer-events-none">
                   {!isHintDismissed && !isPlaying && (
@@ -603,70 +477,102 @@ export const FrontDoorScreen: React.FC<FrontDoorScreenProps> = ({
               </div>
             </div>
           ) : (
-            /* CARDS 1–7: TOUR GUIDE DADDY (Adaptive 1-Col Portrait / 2-Col Landscape) */
+            /* CARDS 1–7: TOUR GUIDE DADDY (Clean hierarchy, solid background opacity, no bleed-through) */
             (() => {
               const card = TOUR_CARDS[activeCardIndex - 1];
               return (
                 <article
                   key={card.id}
                   data-testid="active-tour-card"
-                  className="pointer-events-auto w-[78%] max-w-[340px] sm:max-w-lg landscape:max-w-2xl bg-neutral-900/85 border border-neutral-800/90 rounded-3xl p-5 sm:p-7 landscape:p-6 shadow-[0_20px_50px_rgba(0,0,0,0.75)] backdrop-blur-md grid grid-cols-1 landscape:grid-cols-12 gap-4 landscape:gap-6 items-center"
+                  className="pointer-events-auto w-[84%] max-w-[350px] sm:max-w-lg landscape:max-w-2xl bg-neutral-900/95 border border-neutral-800/95 rounded-3xl p-6 sm:p-8 landscape:p-8 shadow-[0_25px_60px_rgba(0,0,0,0.85)] backdrop-blur-xl flex flex-col text-left space-y-4"
                 >
-                  {/* Left Column in Landscape / Top in Portrait: Coach Pitch */}
-                  <div className="landscape:col-span-7 flex flex-col text-left space-y-2.5">
-                    <div className="inline-flex items-center gap-2 text-[11px] font-mono font-bold uppercase tracking-widest text-amber-400">
-                      <span>{card.badge}</span>
+                  {/* Position Indicator Badge e.g. "BEAT 01/07" */}
+                  <div className="inline-flex items-center text-[11px] font-mono font-bold uppercase tracking-widest text-amber-400">
+                    <span>{card.badge}</span>
+                  </div>
+
+                  {/* Headline: #1 Primary */}
+                  <h2 className="text-xl sm:text-2xl landscape:text-2xl font-extrabold tracking-tight text-white leading-snug">
+                    {card.headline}
+                  </h2>
+
+                  {/* Yellow Quote: #2 Second Biggest, prominent and readable */}
+                  <blockquote className="text-base sm:text-lg text-amber-300/95 font-medium italic leading-relaxed border-l-2 border-amber-400 pl-3.5 py-0.5">
+                    {card.quote}
+                  </blockquote>
+
+                  {/* Subtext: #3 Smaller grey description */}
+                  <p className="text-xs sm:text-sm text-neutral-400 leading-relaxed">
+                    {card.subtext}
+                  </p>
+
+                  {/* Optional Example block: rendered only when present (Card 07 shortcuts) */}
+                  {card.renderVisual && (
+                    <div className="w-full pt-1">
+                      {card.renderVisual()}
                     </div>
-
-                    <h2 className="text-xl sm:text-2xl landscape:text-xl font-extrabold tracking-tight text-white leading-snug">
-                      {card.headline}
-                    </h2>
-
-                    <blockquote className="text-xs sm:text-sm text-amber-100/95 font-medium italic leading-relaxed border-l-2 border-amber-400/70 pl-3 py-0.5">
-                      {card.quote}
-                    </blockquote>
-
-                    <p className="text-xs text-neutral-400 leading-relaxed">
-                      {card.subtext}
-                    </p>
-                  </div>
-
-                  {/* Right Column in Landscape / Bottom in Portrait: Feature Visual Showcase */}
-                  <div className="landscape:col-span-5 w-full flex items-center justify-center">
-                    {card.renderVisual()}
-                  </div>
+                  )}
                 </article>
               );
             })()
           )}
         </div>
 
-        {/* Right Peeking Neighbor Card (fades in from right edge with real content preview) */}
-        <button
-          type="button"
-          data-testid="peek-next-card"
-          onClick={goToNextCard}
-          aria-label={`Next card: ${getCardShortTitle(nextCardIndex)}`}
-          style={{
-            WebkitMaskImage:
-              'linear-gradient(to left, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.65) 48%, rgba(0,0,0,1) 100%)',
-            maskImage:
-              'linear-gradient(to left, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.65) 48%, rgba(0,0,0,1) 100%)',
-          }}
-          className="group absolute -right-6 sm:-right-8 top-1/2 -translate-y-1/2 w-28 sm:w-56 landscape:w-64 h-80 sm:h-96 landscape:h-72 rounded-3xl bg-neutral-900/75 hover:bg-neutral-800/85 border border-neutral-800/90 hover:border-amber-500/45 backdrop-blur-sm flex flex-col justify-between items-start pl-3.5 pr-8 sm:pl-5 sm:pr-12 py-6 transition-all duration-300 opacity-75 hover:opacity-100 hover:-translate-x-1 cursor-pointer z-10 shadow-xl"
-        >
-          <div className="flex items-center gap-1 text-amber-400/80 group-hover:text-amber-300 transition">
-            <span className="text-[10px] font-mono uppercase tracking-wider">Next</span>
-            <ChevronRight className="w-4 h-4 shrink-0" />
+        {/* Right Peeking Neighbor Card: Always visible on tablet/desktop and on Metronome card; hidden on phone tour cards */}
+        {showSidePaddles && (
+          <button
+            type="button"
+            data-testid="peek-next-card"
+            onClick={goToNextCard}
+            aria-label={`Next card: ${getCardShortTitle(nextCardIndex)}`}
+            style={{
+              WebkitMaskImage:
+                'linear-gradient(to left, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.65) 48%, rgba(0,0,0,1) 100%)',
+              maskImage:
+                'linear-gradient(to left, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.65) 48%, rgba(0,0,0,1) 100%)',
+            }}
+            className="group absolute -right-6 sm:-right-8 top-1/2 -translate-y-1/2 w-28 sm:w-56 landscape:w-64 h-80 sm:h-96 landscape:h-72 rounded-3xl bg-neutral-900/90 hover:bg-neutral-850 border border-neutral-800/90 hover:border-amber-500/45 backdrop-blur-md flex flex-col justify-between items-start pl-3.5 pr-8 sm:pl-5 sm:pr-12 py-6 transition-all duration-300 opacity-75 hover:opacity-100 hover:-translate-x-1 cursor-pointer z-10 shadow-xl"
+          >
+            <div className="flex items-center gap-1 text-amber-400/80 group-hover:text-amber-300 transition">
+              <span className="text-[10px] font-mono uppercase tracking-wider">Next</span>
+              <ChevronRight className="w-4 h-4 shrink-0" />
+            </div>
+            {renderPeekCardContent(nextCardIndex, 'right')}
+            <div className="w-6 h-0.5 rounded-full bg-neutral-700 group-hover:bg-amber-400/60 transition" />
+          </button>
+        )}
+
+        {/* Bottom Nav Area for Phone Aspect Tour Cards: "< Prev [Title]" and "[Title] Next >" */}
+        {!showSidePaddles && (
+          <div className="w-full max-w-[350px] flex items-center justify-between px-2 pt-3 pb-1 z-20">
+            <button
+              type="button"
+              data-testid="bottom-nav-prev-card"
+              onClick={goToPrevCard}
+              className="flex items-center gap-1 text-xs font-mono text-neutral-400 hover:text-amber-400 active:text-amber-300 transition cursor-pointer max-w-[48%] truncate py-1.5"
+              title={`Previous: ${getCardShortTitle(prevCardIndex)}`}
+            >
+              <ChevronLeft className="w-3.5 h-3.5 shrink-0 text-amber-400" />
+              <span className="truncate">{getCardShortTitle(prevCardIndex)}</span>
+            </button>
+
+            <button
+              type="button"
+              data-testid="bottom-nav-next-card"
+              onClick={goToNextCard}
+              className="flex items-center gap-1 text-xs font-mono text-neutral-400 hover:text-amber-400 active:text-amber-300 transition cursor-pointer max-w-[48%] truncate py-1.5 justify-end"
+              title={`Next: ${getCardShortTitle(nextCardIndex)}`}
+            >
+              <span className="truncate">{getCardShortTitle(nextCardIndex)}</span>
+              <ChevronRight className="w-3.5 h-3.5 shrink-0 text-amber-400" />
+            </button>
           </div>
-          {renderPeekCardContent(nextCardIndex, 'right')}
-          <div className="w-6 h-0.5 rounded-full bg-neutral-700 group-hover:bg-amber-400/60 transition" />
-        </button>
+        )}
 
         {/* Glowing Carousel Position Pill: Spaced halfway between the card/dial and START TEMPO DADDY drawer */}
         <nav
           aria-label="Tour Carousel Pagination"
-          className="flex items-center gap-1.5 my-auto z-20"
+          className="flex items-center gap-1.5 my-auto z-20 py-2"
         >
           {Array.from({ length: TOTAL_CARDS }).map((_, idx) => {
             const isActive = idx === activeCardIndex;
@@ -675,7 +581,10 @@ export const FrontDoorScreen: React.FC<FrontDoorScreenProps> = ({
               <button
                 key={idx}
                 type="button"
-                onClick={() => setActiveCardIndex(idx)}
+                onClick={() => {
+                  setSlideDirection(idx > activeCardIndex ? 'next' : 'prev');
+                  setActiveCardIndex(idx);
+                }}
                 aria-label={`Go to ${getCardShortTitle(idx)}`}
                 className={`h-2 rounded-full transition-all duration-300 cursor-pointer ${
                   isActive
@@ -692,7 +601,7 @@ export const FrontDoorScreen: React.FC<FrontDoorScreenProps> = ({
         </nav>
       </main>
 
-      {/* Bottom Centered (Non-Full-Width) Drawer Tab: "START TEMPO DADDY [space]" */}
+      {/* Bottom Centered Drawer Tab: "START TEMPO DADDY [space]" styled to match main Tempo Daddy gold glow button */}
       <footer className="w-full flex justify-center shrink-0 z-20 px-4">
         <button
           type="button"
@@ -712,13 +621,16 @@ export const FrontDoorScreen: React.FC<FrontDoorScreenProps> = ({
               onEnterGym();
             }
           }}
-          className="group relative flex flex-col items-center justify-center w-72 sm:w-80 max-w-[92vw] pt-2.5 pb-[max(0.65rem,env(safe-area-inset-bottom))] rounded-t-2xl bg-gradient-to-t from-neutral-900 via-neutral-900/95 to-neutral-800/95 hover:from-neutral-800 hover:to-neutral-700 border-t border-x border-amber-400/45 hover:border-amber-400 shadow-[0_-8px_30px_rgba(251,191,36,0.18)] transition-all duration-200 cursor-pointer active:translate-y-0.5"
+          className="group relative flex flex-col items-center justify-center w-72 sm:w-80 max-w-[92vw] pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] rounded-t-3xl bg-gradient-to-t from-amber-500/25 via-neutral-900/95 to-neutral-900/90 hover:from-amber-500/35 hover:to-neutral-850 border-t-2 border-x-2 border-amber-400/75 hover:border-amber-300 shadow-[0_-12px_36px_rgba(251,191,36,0.32)] transition-all duration-200 cursor-pointer active:translate-y-0.5"
         >
+          {/* Subtle Top Golden Glow Bar */}
+          <div className="absolute top-0 inset-x-8 h-0.5 bg-gradient-to-r from-transparent via-amber-300 to-transparent opacity-80 group-hover:opacity-100 transition-opacity" />
+
           <ChevronUp className="w-4 h-4 text-amber-400 group-hover:-translate-y-0.5 transition-transform -mb-0.5" />
-          <span className="text-xs sm:text-sm font-black tracking-widest uppercase text-white group-hover:text-amber-300 transition">
+          <span className="text-xs sm:text-sm font-black tracking-widest uppercase text-white group-hover:text-amber-200 transition">
             START TEMPO DADDY
           </span>
-          <span className="mt-0.5 text-[11px] font-mono tracking-wider text-neutral-400 group-hover:text-amber-300 transition">
+          <span className="mt-0.5 text-[11px] font-mono tracking-wider text-amber-300/80 group-hover:text-amber-200 transition">
             [space]
           </span>
         </button>

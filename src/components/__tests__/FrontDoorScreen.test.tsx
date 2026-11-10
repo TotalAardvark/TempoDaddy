@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { FrontDoorScreen, METRONOME_HINT_STORAGE_KEY } from '../FrontDoorScreen';
 import { ColdStartScreen } from '../ColdStartScreen';
 import App from '../../App';
-import type { Skill } from '../../types';
+import { encodePlaylistToHash } from '../../utils/playlistShare';
+import type { Playlist, Skill } from '../../types';
 
 describe('FrontDoorScreen & Unified Front Door (AC1–AC8)', () => {
   beforeEach(() => {
@@ -257,7 +258,7 @@ describe('FrontDoorScreen & Unified Front Door (AC1–AC8)', () => {
     expect(onReturnToFrontDoor).toHaveBeenCalledTimes(1);
     expect(onStart).not.toHaveBeenCalled();
 
-    // Clicking top drawer return handle calls onReturnToFrontDoor and does NOT start workout
+    // Clicking drawer return handle calls onReturnToFrontDoor and does NOT start workout
     fireEvent.click(screen.getByTestId('return-to-front-door'));
     expect(onReturnToFrontDoor).toHaveBeenCalledTimes(2);
     expect(onStart).not.toHaveBeenCalled();
@@ -269,18 +270,18 @@ describe('FrontDoorScreen & Unified Front Door (AC1–AC8)', () => {
     // Default Front Door BPM is 67
     expect(screen.getByTestId('hero-bpm-display').textContent).toBe('67');
 
-    // Metronome Daddy is enclosed in a taller, narrower styled grey card so it doesn't crowd side drawers
+    // Metronome Daddy is enclosed in a styled grey card that adapts flexibly to viewport space
     const metronomeCard = screen.getByTestId('metronome-daddy-card');
-    expect(metronomeCard.className).toContain('bg-neutral-900/80');
-    expect(metronomeCard.className).toContain('border-neutral-800/90');
+    expect(metronomeCard.className).toContain('bg-neutral-900/95');
+    expect(metronomeCard.className).toContain('border-neutral-800/95');
     expect(metronomeCard.className).toContain('rounded-3xl');
-    expect(metronomeCard.className).toContain('min-h-[420px]');
-    expect(metronomeCard.className).toContain('max-w-[300px]');
+    expect(metronomeCard.className).toContain('min-h-[530px]');
+    expect(metronomeCard.className).toContain('max-w-md');
 
     // Left and right peeking cards display actual preview headlines fading in from the sides
     const prevPeek = screen.getByTestId('peek-prev-card');
     const nextPeek = screen.getByTestId('peek-next-card');
-    expect(prevPeek.textContent).toMatch(/Barely Touch Your Device/i);
+    expect(prevPeek.textContent).toMatch(/Hands on your instrument/i);
     expect(nextPeek.textContent).toMatch(/Weight Room/i);
 
     // Compact skeuomorphic dial dimensions (1/3 height -> h-4, 1/2 width -> w-28 sm:w-32)
@@ -308,5 +309,87 @@ describe('FrontDoorScreen & Unified Front Door (AC1–AC8)', () => {
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(drawer.getAttribute('aria-hidden')).toBe('true');
     expect(drawer.className).toContain('translate-y-full');
+  });
+
+  it('Touch Swipes & Thumbdial Wheel: supports horizontal stage swipes, vertical swipe-up to enter Gym, and thumbdial wheel increments', () => {
+    const onEnterGym = vi.fn();
+    const TestHarness = () => {
+      const [bpm, setBpm] = useState(120);
+      return (
+        <FrontDoorScreen
+          bpm={bpm}
+          isPlaying={false}
+          onBpmChange={(next) => setBpm((prev) => (typeof next === 'function' ? next(prev) : next))}
+          onTogglePlay={vi.fn()}
+          onEnterGym={onEnterGym}
+        />
+      );
+    };
+
+    render(<TestHarness />);
+
+    const stage = screen.getByTestId('front-door-header').parentElement!;
+    const getIndex = () => Number(screen.getByTestId('active-card-index').getAttribute('data-index'));
+    expect(getIndex()).toBe(0);
+
+    // 1. Thumbdial wheel adjustment
+    const thumbDial = screen.getByTestId('horizontal-thumb-dial');
+    fireEvent.wheel(thumbDial, { deltaX: 20, deltaY: 0 });
+    expect(screen.getByTestId('hero-bpm-display').textContent).toBe('121');
+    fireEvent.wheel(thumbDial, { deltaX: -20, deltaY: 0 });
+    expect(screen.getByTestId('hero-bpm-display').textContent).toBe('120');
+
+    // 2. Horizontal swipe left on stage -> advances to Card 1
+    fireEvent.touchStart(stage, { touches: [{ clientX: 250, clientY: 300 }] });
+    fireEvent.touchEnd(stage, { changedTouches: [{ clientX: 150, clientY: 305 }] });
+    expect(getIndex()).toBe(1);
+
+    // 3. Horizontal swipe right on stage -> returns to Card 0
+    fireEvent.touchStart(stage, { touches: [{ clientX: 150, clientY: 300 }] });
+    fireEvent.touchEnd(stage, { changedTouches: [{ clientX: 260, clientY: 295 }] });
+    expect(getIndex()).toBe(0);
+
+    // 4. Strong vertical upward swipe on stage -> calls onEnterGym
+    fireEvent.touchStart(stage, { touches: [{ clientX: 200, clientY: 500 }] });
+    fireEvent.touchEnd(stage, { changedTouches: [{ clientX: 202, clientY: 400 }] });
+    expect(onEnterGym).toHaveBeenCalledTimes(1);
+  });
+
+  it('Deep-Link Playlist Import (#import=): confirming an imported playlist automatically opens the Gym drawer', () => {
+    const sampleSkills: Skill[] = [
+      {
+        id: 'sk-1',
+        title: 'Herta Groove',
+        category: 'drumming',
+        personalBestBpm: 90,
+        subdivision: '1/16',
+        isTriplet: false,
+        order: 0,
+        createdAt: '2026-01-01T00:00:00.000Z',
+      },
+    ];
+    const samplePlaylist: Playlist = {
+      id: 'pl-1',
+      name: 'Shared Chops Routine',
+      skillIds: ['sk-1'],
+      createdAt: '2026-01-01T00:00:00.000Z',
+    };
+
+    const payload = encodePlaylistToHash(samplePlaylist, sampleSkills);
+    window.location.hash = `#import=${payload}`;
+
+    render(<App />);
+
+    // Confirm import button inside ImportPlaylistModal
+    const importBtn = screen.getByRole('button', { name: /add to my playlists/i });
+    fireEvent.click(importBtn);
+
+    // Gym drawer should automatically slide open and display the imported routine
+    const drawer = screen.getByTestId('gym-drawer-container');
+    expect(drawer.getAttribute('aria-hidden')).toBe('false');
+    expect(drawer.className).toContain('translate-y-0');
+    expect(screen.getAllByText('Herta Groove').length).toBeGreaterThan(0);
+
+    window.location.hash = '';
   });
 });

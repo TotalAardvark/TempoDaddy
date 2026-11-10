@@ -8,6 +8,7 @@ const SESSIONS_KEY = 'tempo_sessions_v1';
 const TEMPO_RAMP_KEY = 'tempo_coach_ramp_settings_v1';
 const TIMBRE_KEY = 'tempo_coach_metronome_timbre_v1';
 const PB_DISPLAY_RANGE_KEY = 'tempo_coach_pb_display_range_v1';
+const FRONT_DOOR_BPM_KEY = 'tempo_front_door_bpm_v1';
 const LOCAL_MODIFIED_KEY = 'tempo_coach_local_modified_at';
 const HAS_UNSYNCED_KEY = 'tempo_coach_has_unsynced_changes';
 
@@ -691,6 +692,27 @@ export const storageManager = {
     } catch (e) {
       console.error('Failed to import JSON data', e);
       return false;
+    }
+  },
+
+  getFrontDoorBpm(): number {
+    try {
+      const raw = localStorage.getItem(FRONT_DOOR_BPM_KEY);
+      if (!raw) return 67;
+      const parsed = parseInt(raw, 10);
+      return Number.isFinite(parsed) && parsed >= 20 && parsed <= 500 ? parsed : 67;
+    } catch {
+      return 67;
+    }
+  },
+
+  saveFrontDoorBpm(bpm: number): void {
+    try {
+      if (Number.isFinite(bpm) && bpm >= 20 && bpm <= 500) {
+        localStorage.setItem(FRONT_DOOR_BPM_KEY, String(Math.round(bpm)));
+      }
+    } catch {
+      // Ignore private browsing storage errors
     }
   },
 };

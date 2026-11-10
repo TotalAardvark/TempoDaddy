@@ -24,3 +24,34 @@ html.is-pwa {
     touch-action: manipulation;
   }
 }
+
+@keyframes coverFlowSlideNext {
+  0% {
+    opacity: 0.35;
+    transform: perspective(1000px) translateX(65px) translateZ(-60px) rotateY(-8deg) scale(0.94);
+  }
+  100% {
+    opacity: 1;
+    transform: perspective(1000px) translateX(0) translateZ(0) rotateY(0deg) scale(1);
+  }
+}
+
+@keyframes coverFlowSlidePrev {
+  0% {
+    opacity: 0.35;
+    transform: perspective(1000px) translateX(-65px) translateZ(-60px) rotateY(8deg) scale(0.94);
+  }
+  100% {
+    opacity: 1;
+    transform: perspective(1000px) translateX(0) translateZ(0) rotateY(0deg) scale(1);
+  }
+}
+
+.animate-card-shuffle-next {
+  animation: coverFlowSlideNext 0.36s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-card-shuffle-prev {
+  animation: coverFlowSlidePrev 0.36s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+

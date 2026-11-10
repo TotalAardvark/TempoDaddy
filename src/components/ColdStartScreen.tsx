@@ -116,30 +116,8 @@ export const ColdStartScreen: React.FC<ColdStartScreenProps> = ({
         }
       }}
       style={{ paddingTop: 'var(--app-header-padding-top)' }}
-      className="h-[100dvh] max-h-[100dvh] overflow-hidden w-full flex flex-col justify-between items-center px-6 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-gradient-to-b from-neutral-950 via-neutral-900 to-black text-white cursor-pointer select-none transition-colors"
+      className="h-[100dvh] max-h-[100dvh] overflow-hidden w-full flex flex-col justify-between items-center px-6 bg-gradient-to-b from-neutral-950 via-neutral-900 to-black text-white cursor-pointer select-none transition-colors"
     >
-      {/* Optional Top Drawer Pull-Down Handle to return to Metronome Daddy & Tour Guide */}
-      {onReturnToFrontDoor && (
-        <div className="w-full flex justify-center -mt-1 mb-1">
-          <button
-            type="button"
-            data-testid="return-to-front-door"
-            onClick={(e) => {
-              e.stopPropagation();
-              onReturnToFrontDoor();
-            }}
-            className="flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-800 hover:border-amber-500/40 text-[11px] font-mono text-neutral-400 hover:text-amber-300 transition cursor-pointer"
-            title="Slide down to Metronome Daddy & Tour Guide (Esc)"
-          >
-            <ChevronDown className="w-3.5 h-3.5 text-amber-400" />
-            <span>Metronome &amp; Tour</span>
-            <kbd className="ml-0.5 px-1 py-0.2 rounded bg-neutral-950 border border-neutral-700 text-[9px] text-neutral-500">
-              Esc
-            </kbd>
-          </button>
-        </div>
-      )}
-
       {/* Top Header Navigation: matches practice screen styling */}
       <div className="w-full max-w-md flex items-center justify-between">
         {/* Left: Branding */}
@@ -322,23 +300,29 @@ export const ColdStartScreen: React.FC<ColdStartScreenProps> = ({
         </div>
       </div>
 
-      {/* Bottom Footer Controls */}
-      <div className="w-full max-w-md pb-2 flex flex-col items-center gap-2">
-        <span className="text-xs font-mono text-neutral-400 animate-bounce tracking-widest uppercase">
-          ✦ Touch anything to begin ✦
-        </span>
-
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onOpenLibrary();
-          }}
-          className="text-xs text-neutral-400 hover:text-white underline underline-offset-4 py-1"
-        >
-          View All Skills & Settings
-        </button>
-      </div>
+      {/* Bottom Centered Return Drawer: matches START TEMPO DADDY drawer size/position/style */}
+      {onReturnToFrontDoor && (
+        <div className="w-full flex justify-center shrink-0 z-20 px-4">
+          <button
+            type="button"
+            data-testid="return-to-front-door"
+            onClick={(e) => {
+              e.stopPropagation();
+              onReturnToFrontDoor();
+            }}
+            className="group relative flex flex-col items-center justify-center w-72 sm:w-80 max-w-[92vw] pt-2.5 pb-[max(0.65rem,env(safe-area-inset-bottom))] rounded-t-2xl bg-gradient-to-t from-neutral-900/95 via-neutral-900/90 to-neutral-800/85 hover:from-neutral-850 hover:to-neutral-750 border-t border-x border-neutral-700/60 hover:border-amber-500/50 shadow-[0_-8px_25px_rgba(0,0,0,0.5)] transition-all duration-200 cursor-pointer active:translate-y-0.5"
+            title="Slide down to Metronome & Tour (Esc)"
+          >
+            <ChevronDown className="w-4 h-4 text-amber-400/80 group-hover:text-amber-300 group-hover:translate-y-0.5 transition-transform -mb-0.5" />
+            <span className="text-xs sm:text-sm font-black tracking-widest uppercase text-neutral-200 group-hover:text-white transition">
+              METRONOME &amp; TOUR
+            </span>
+            <span className="mt-0.5 text-[11px] font-mono tracking-wider text-neutral-400 group-hover:text-amber-300/80 transition">
+              [Esc]
+            </span>
+          </button>
+        </div>
+      )}
     </div>
   );
 };
