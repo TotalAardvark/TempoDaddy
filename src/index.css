@@ -55,3 +55,26 @@ html.is-pwa {
   animation: coverFlowSlidePrev 0.36s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+@keyframes metronomePopBounce {
+  0% {
+    transform: scale(1);
+  }
+  25% {
+    transform: scale(0.92);
+  }
+  55% {
+    transform: scale(1.12);
+  }
+  80% {
+    transform: scale(0.98);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.animate-metronome-bounce {
+  animation: metronomePopBounce 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+
