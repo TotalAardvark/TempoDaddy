@@ -414,6 +414,9 @@ describe('FrontDoorScreen & Unified Front Door (AC1–AC8)', () => {
     const trigger = screen.getByTestId('metronome-daddy-trigger');
     const icon = trigger.querySelector('svg');
     expect(icon?.getAttribute('class')).toContain('group-hover:scale-[1.06]');
+    expect(icon?.getAttribute('class')).toContain('w-[17.5rem]');
+    expect(icon?.getAttribute('class')).toContain('sm:w-[22.75rem]');
+    expect(icon?.getAttribute('class')).toContain('landscape:w-[21rem]');
 
     fireEvent.click(trigger);
     expect(trigger.className).toContain('animate-metronome-bounce');
@@ -426,12 +429,17 @@ describe('FrontDoorScreen & Unified Front Door (AC1–AC8)', () => {
 
     // 2. Over giant BPM display
     const bpmDisplay = screen.getByTestId('hero-bpm-display');
+    expect(bpmDisplay.className).toContain('text-[clamp(11.25rem,36vw,21rem)]');
+    expect(bpmDisplay.className).toContain('landscape:text-[clamp(9.75rem,27vw,17.25rem)]');
     fireEvent.wheel(bpmDisplay, { deltaY: 100 });
     expect(screen.getByTestId('hero-bpm-display').textContent).toBe('120');
     expect(screen.getByTestId('active-card-index').getAttribute('data-index')).toBe('0');
 
     // 3. Over amber ring
     const amberRing = screen.getByTestId('metronome-amber-ring');
+    expect(amberRing.className).toContain('w-[22rem]');
+    expect(amberRing.className).toContain('sm:w-[28rem]');
+    expect(amberRing.className).toContain('landscape:w-[26rem]');
     fireEvent.wheel(amberRing, { deltaY: -100 });
     expect(screen.getByTestId('hero-bpm-display').textContent).toBe('121');
     expect(screen.getByTestId('active-card-index').getAttribute('data-index')).toBe('0');

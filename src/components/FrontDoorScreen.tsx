@@ -481,20 +481,20 @@ export const FrontDoorScreen: React.FC<FrontDoorScreenProps> = ({
                   data-testid="metronome-amber-ring"
                   aria-hidden="true"
                   onWheel={handleApparatusWheel}
-                  className={`absolute w-52 h-52 sm:w-64 sm:h-64 landscape:w-60 landscape:h-60 rounded-full border-[3px] border-amber-400/90 shadow-[0_0_55px_rgba(251,191,36,0.55),inset_0_0_35px_rgba(251,191,36,0.3)] transition-all duration-500 pointer-events-auto ${
+                  className={`absolute top-1/2 -translate-y-1/2 w-[22rem] h-[22rem] sm:w-[28rem] sm:h-[28rem] landscape:w-[26rem] landscape:h-[26rem] rounded-full border-[3px] border-amber-400/90 shadow-[0_0_55px_rgba(251,191,36,0.55),inset_0_0_35px_rgba(251,191,36,0.3)] transition-all duration-500 pointer-events-auto ${
                     isPlaying ? 'opacity-100 scale-100 animate-pulse' : 'opacity-0 scale-90'
                   }`}
                 />
 
                 {/* 2. Giant Beautiful Number Font BEHIND the metronome: matches full inner width of metronome card without cutoff */}
                 <div
-                  className="absolute inset-x-0 -top-6 sm:-top-8 landscape:-top-7 flex items-center justify-center pointer-events-none select-none z-0"
+                  className="absolute inset-x-0 -top-14 sm:-top-20 landscape:-top-16 flex items-center justify-center pointer-events-none select-none z-0"
                 >
                   <span
                     data-testid="hero-bpm-display"
                     aria-label={`${bpm} BPM`}
                     onWheel={handleApparatusWheel}
-                    className="pointer-events-auto text-center text-[clamp(7.5rem,24vw,14rem)] landscape:text-[clamp(6.5rem,18vw,11.5rem)] leading-none font-black font-mono tracking-tighter tabular-nums text-transparent bg-clip-text bg-gradient-to-b from-white via-amber-100/90 to-neutral-600/20 drop-shadow-[0_4px_24px_rgba(0,0,0,0.85)]"
+                    className="pointer-events-auto text-center text-[clamp(11.25rem,36vw,21rem)] landscape:text-[clamp(9.75rem,27vw,17.25rem)] leading-none font-black font-mono tracking-tighter tabular-nums text-transparent bg-clip-text bg-gradient-to-b from-white via-amber-100/90 to-neutral-600/20 drop-shadow-[0_4px_24px_rgba(0,0,0,0.85)]"
                   >
                     {bpm}
                   </span>
@@ -516,7 +516,7 @@ export const FrontDoorScreen: React.FC<FrontDoorScreenProps> = ({
                   <MetronomeDaddyIcon
                     isPlaying={isPlaying}
                     bpm={bpm}
-                    className="w-40 h-40 sm:w-52 sm:h-52 landscape:w-48 landscape:h-48 drop-shadow-[0_14px_28px_rgba(0,0,0,0.85)] group-hover:scale-[1.06] transition-transform duration-200 ease-out"
+                    className="w-[17.5rem] h-[17.5rem] sm:w-[22.75rem] sm:h-[22.75rem] landscape:w-[21rem] landscape:h-[21rem] drop-shadow-[0_14px_28px_rgba(0,0,0,0.85)] group-hover:scale-[1.06] transition-transform duration-200 ease-out"
                   />
                 </button>
               </div>
